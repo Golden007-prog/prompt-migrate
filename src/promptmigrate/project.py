@@ -2,18 +2,92 @@
 
 from __future__ import annotations
 
+import errno
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
 from . import protocol, secretscan
-from .errors import InitializationError, SchemaError
+from .errors import InitializationError, SchemaError, StorageError
 
 ALLOWLIST_FILE = "secret-allowlist.json"
+# os.link failures that mean "this filesystem has no hard links" (e.g. FAT/exFAT), not "the publish failed".
+_NO_LINKS = {errno.EPERM, errno.ENOTSUP, errno.EOPNOTSUPP}
 
 
 def pretty(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, ensure_ascii=False, indent=2) + "\n"
+
+
+def _write_all(fd: int, data: bytes) -> None:
+    view = memoryview(data)
+    while view:
+        view = view[os.write(fd, view):]
+
+
+def _umask_mode() -> int:
+    """The mode a plain new file gets: mkstemp's 0600 would make a tracked source file unreadable to others."""
+    umask = os.umask(0)
+    os.umask(umask)
+    return 0o666 & ~umask
+
+
+def _fsync_dir(directory: Path) -> None:
+    if os.name != "nt":  # Windows cannot open a directory for fsync; NTFS journals the new entry itself
+        fd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+
+def _write_exclusive(path: Path, data: bytes) -> None:
+    """No-clobber fallback without hard links: still never overwrites, but a crash can leave a partial file."""
+    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0), _umask_mode())
+    try:
+        try:
+            _write_all(fd, data)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except BaseException:
+        path.unlink(missing_ok=True)  # we created it (O_EXCL), so removing it removes only our partial bytes
+        raise
+
+
+def write_new_file(path: Path, text: str) -> None:
+    """Publish `text` as UTF-8 at `path` (a new file) atomically, never overwriting an existing one.
+
+    Raises FileExistsError if `path` exists; any other OSError becomes StorageError. No temp file survives.
+    """
+    data = text.encode("utf-8")
+    try:
+        fd, name = tempfile.mkstemp(prefix=".", suffix=".tmp", dir=path.parent)
+        temp = Path(name)
+        try:
+            try:
+                _write_all(fd, data)
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+            os.chmod(temp, _umask_mode())
+            try:
+                os.link(temp, path)
+            except FileExistsError:
+                raise
+            except OSError as exc:
+                if exc.errno not in _NO_LINKS:
+                    raise
+                _write_exclusive(path, data)
+            _fsync_dir(path.parent)
+        finally:
+            temp.unlink(missing_ok=True)
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        raise StorageError(f"Cannot write {path.name}: {exc}") from exc
 
 
 def root_dir(project_dir: Path) -> Path:

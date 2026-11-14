@@ -9,6 +9,12 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 - Corrected README and handoff documentation to include the shipped `plan` command and native Windows/macOS CI coverage; refreshed the documented test baseline and suite location. Brought `PRD.md`, `ROADMAP.md` and `LOW_LEVEL_DESIGN.md` up to date with the shipped `plan`, exit codes, JSON output, typed errors and strict loader. Moved all agent rules and the architecture overview from `CLAUDE.md` into `AGENTS.md`.
 - Compacted `AGENTS.md` without dropping rules, and added a "Before every commit" rule: each commit updates `CHANGELOG.md` and `docs/ROADMAP.md`.
 
+### Phase 1 cycle 2 — atomic revision writes and collision handling (PR 10)
+
+- Added `project.write_new_file`: writes to a hidden `.tmp` file in the target directory, fsyncs it, then publishes
+  with a hard link that never overwrites an existing file; nothing partial is left on failure. Filesystems without
+  hard links fall back to an exclusive create (still no-clobber, not crash-atomic).
+
 ### Phase 1 cycle 2 — line-ending recovery for v0 (`restamp`, PR 9)
 
 - Added `promptmigrate restamp --env <env>` (ADR-027): an explicit, all-or-nothing command that re-stamps the ledger
