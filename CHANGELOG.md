@@ -17,6 +17,7 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 - `revision` now runs under the project lock and publishes through `write_new_file`: it never overwrites an existing
   file ("Revision file already exists: <name>", exit 5), leaves no partial `.json` or `.tmp` on failure, and
   regenerates a revision id that already exists in history (at most 5 attempts).
+- Recorded the post-PR 10 test baseline (880 passed, 19 skipped).
 
 ### Phase 1 cycle 2 — line-ending recovery for v0 (`restamp`, PR 9)
 

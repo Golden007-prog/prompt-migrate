@@ -38,6 +38,7 @@
   - 2026-11-13: explicit `restamp` for v0 ledger rows whose mismatch is line endings only (ADR-027). Baseline after PR 9: 854 passed, 18 skipped.
   - 2026-11-14: review fix: `restamp` removed from the docs' list of commands that reject an eligible line-ending-only row with exit 4 (it re-stamps and succeeds). Baseline unchanged: 854 passed, 18 skipped.
 - [x] Atomic revision file generation and collision handling.
+  - 2026-11-14: `revision` writes through `project.write_new_file` under the project lock: no overwrite, no partial file, colliding ids regenerated (I17). Baseline after PR 10: 880 passed, 19 skipped.
 - [ ] `validate` command.
 - [ ] Concurrency tests and the fault-injection suite.
 - [ ] Package-install smoke tests.
