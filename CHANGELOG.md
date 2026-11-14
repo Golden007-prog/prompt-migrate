@@ -14,6 +14,9 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 - Added `project.write_new_file`: writes to a hidden `.tmp` file in the target directory, fsyncs it, then publishes
   with a hard link that never overwrites an existing file; nothing partial is left on failure. Filesystems without
   hard links fall back to an exclusive create (still no-clobber, not crash-atomic).
+- `revision` now runs under the project lock and publishes through `write_new_file`: it never overwrites an existing
+  file ("Revision file already exists: <name>", exit 5), leaves no partial `.json` or `.tmp` on failure, and
+  regenerates a revision id that already exists in history (at most 5 attempts).
 
 ### Phase 1 cycle 2 — line-ending recovery for v0 (`restamp`, PR 9)
 

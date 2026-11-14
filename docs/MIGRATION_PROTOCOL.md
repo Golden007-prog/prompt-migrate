@@ -190,7 +190,10 @@ A revision file whose top-level `format_version` is the JSON integer `1` is v1 (
   string escapes and a BOM do not change it. Any change to a parsed value does, and so does removing
   `format_version`, because the file then becomes v0
 - generator: `revision` writes v1, UTF-8 with LF line endings on every OS; the 16 MiB size check counts those exact
-  bytes
+  bytes. It holds the project lock while it reads history and writes, writes to a hidden `.tmp` file in `versions/`,
+  fsyncs it and publishes it with a hard link that fails if the target exists, so a revision file is never
+  overwritten or left partial. Where hard links are unsupported (e.g. FAT/exFAT) it falls back to an exclusive
+  create: still no-clobber, but a crash mid-write can leave a partial file
 - a string containing an unpaired UTF-16 surrogate escape (for example `"\udc80"`) cannot be canonicalised and is a
   tier-A error: `Invalid string in <file>: unpaired surrogate`
 
