@@ -8,6 +8,7 @@ fallback: still no-clobber, but not atomic against a crash.
 import errno
 import os
 import stat
+from pathlib import Path
 
 import pytest
 
@@ -134,3 +135,49 @@ def test_new_file_gets_the_umask_mode_not_the_temp_files_0600(tmp_path):
     finally:
         os.umask(umask)
     assert stat.S_IMODE(target.stat().st_mode) == 0o644
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows-specific CreateHardLink winerror mapping")
+@pytest.mark.parametrize("winerror", [1, 50])
+def test_windows_winerror_not_supported_falls_back_to_exclusive_create(tmp_path, monkeypatch, winerror):
+    def unsupported(*_args, **_kwargs):
+        raise OSError(None, "not supported", None, winerror)
+
+    monkeypatch.setattr(os, "link", unsupported)
+    target = tmp_path / "r.json"
+    project.write_new_file(target, TEXT)
+    assert target.read_bytes() == DATA
+    assert leftovers(tmp_path) == ["r.json"]
+
+
+def test_fsync_dir_failure_after_publish_is_ignored(tmp_path, monkeypatch):
+    monkeypatch.setattr(project, "_fsync_dir", _fail)
+    target = tmp_path / "r.json"
+    assert project.write_new_file(target, TEXT) is None
+    assert target.read_bytes() == DATA
+
+
+def _flaky_tmp_unlink(self, missing_ok=False):
+    if self.name.endswith(".tmp"):
+        raise PermissionError(errno.EACCES, "temp file busy")
+    return _REAL_UNLINK(self, missing_ok=missing_ok)
+
+
+_REAL_UNLINK = Path.unlink
+
+
+def test_temp_unlink_failure_does_not_fail_a_successful_publish(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "unlink", _flaky_tmp_unlink)
+    target = tmp_path / "r.json"
+    assert project.write_new_file(target, TEXT) is None
+    assert target.read_bytes() == DATA
+    assert list(tmp_path.glob("*.json")) == [target]
+
+
+def test_temp_unlink_failure_does_not_mask_file_exists_error(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "unlink", _flaky_tmp_unlink)
+    target = tmp_path / "r.json"
+    target.write_bytes(b"original")
+    with pytest.raises(FileExistsError):
+        project.write_new_file(target, TEXT)
+    assert target.read_bytes() == b"original"

@@ -15,6 +15,9 @@ from .errors import InitializationError, SchemaError, StorageError
 ALLOWLIST_FILE = "secret-allowlist.json"
 # os.link failures that mean "this filesystem has no hard links" (e.g. FAT/exFAT), not "the publish failed".
 _NO_LINKS = {errno.EPERM, errno.ENOTSUP, errno.EOPNOTSUPP}
+# CreateHardLink's own "not supported" codes (FAT/exFAT, many SMB shares); CPython maps these failures to errno
+# EINVAL, which isn't in _NO_LINKS above, so the winerror has to be checked too on Windows.
+_NO_LINKS_WINERROR = {1, 50}  # ERROR_INVALID_FUNCTION, ERROR_NOT_SUPPORTED
 
 
 def pretty(obj: Any) -> str:
@@ -41,6 +44,13 @@ def _fsync_dir(directory: Path) -> None:
             os.fsync(fd)
         finally:
             os.close(fd)
+
+
+def _link_unsupported(exc: OSError) -> bool:
+    """Whether `exc` means "this filesystem has no hard links", on POSIX or on Windows."""
+    if exc.errno in _NO_LINKS:
+        return True
+    return os.name == "nt" and getattr(exc, "winerror", None) in _NO_LINKS_WINERROR
 
 
 def _write_exclusive(path: Path, data: bytes) -> None:
@@ -78,16 +88,24 @@ def write_new_file(path: Path, text: str) -> None:
             except FileExistsError:
                 raise
             except OSError as exc:
-                if exc.errno not in _NO_LINKS:
+                if not _link_unsupported(exc):
                     raise
                 _write_exclusive(path, data)
-            _fsync_dir(path.parent)
         finally:
-            temp.unlink(missing_ok=True)
+            # Best-effort: once published, a leftover/failed-to-remove temp file must not turn success into
+            # StorageError, nor replace an in-flight exception (e.g. the FileExistsError above) with its own.
+            try:
+                temp.unlink(missing_ok=True)
+            except OSError:
+                pass
     except FileExistsError:
         raise
     except OSError as exc:
         raise StorageError(f"Cannot write {path.name}: {exc}") from exc
+    try:
+        _fsync_dir(path.parent)  # the file is already visible; directory durability beyond this is best effort
+    except OSError:
+        pass
 
 
 def root_dir(project_dir: Path) -> Path:
