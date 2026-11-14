@@ -18,6 +18,7 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
   file ("Revision file already exists: <name>", exit 5), leaves no partial `.json` or `.tmp` on failure, and
   regenerates a revision id that already exists in history (at most 5 attempts).
 - Recorded the post-PR 10 test baseline (880 passed, 19 skipped).
+- Clarified in `CLI_SPEC.md` that the no-hard-link fallback is not crash-atomic.
 
 ### Phase 1 cycle 2 — line-ending recovery for v0 (`restamp`, PR 9)
 
