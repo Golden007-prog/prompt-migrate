@@ -168,5 +168,6 @@ Every command must exit successfully and return the JSON success envelope; the f
 No runtime dependency is added. The build frontend is CI/development tooling only.
 
 `tests/integration/test_package_install_isolation.py` checks the import guard in real temporary interpreters,
-including a `.pth` file that redirects imports to a source directory.
+including a `.pth` file that redirects imports to a source directory and namespace packages,
+whose `__path__` portions are checked because they have no `__file__`.
 These checks complement the source suite. The merge gate still requires every Linux, Windows and macOS CI job to pass.
