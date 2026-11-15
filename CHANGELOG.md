@@ -4,6 +4,7 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 
 ## Unreleased
 
+- Rewrote `README.md` for open-source contributors: badges, a Mermaid flow diagram, links to the roadmap milestones, Contributing and Community sections, and a new minimal wordmark banner (`assets/readme-banner.svg`). Added `assets/social-preview.svg` and a rendered 1280×640 `assets/social-preview.png` for the GitHub social preview. Removed the stale claim that Python 3.11 is covered by a local Windows merge gate.
 - Added Commands, Code style, and Issues and pull requests sections to `AGENTS.md`. `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, `HERMES.md` and `.github/copilot-instructions.md` now only point to `AGENTS.md`; `CLAUDE.md` and `GEMINI.md` import it with `@AGENTS.md`.
 - Replaced the local-Windows merge gate in `AGENTS.md` with a CI-based one: every CI job green on all OS/Python combinations, branch up to date with `main`, resolved review threads, and real test output in the PR. Changes reach `main` only through a reviewed pull request. The PR template now asks for `Closes #N` and green CI.
 - Added `uv.lock`, pinning the dev dependencies for `uv run --extra dev`. The runtime stays stdlib-only; `pip install -e ".[dev]"` is unchanged.
