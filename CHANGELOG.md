@@ -9,6 +9,23 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 - Corrected README and handoff documentation to include the shipped `plan` command and native Windows/macOS CI coverage; refreshed the documented test baseline and suite location. Brought `PRD.md`, `ROADMAP.md` and `LOW_LEVEL_DESIGN.md` up to date with the shipped `plan`, exit codes, JSON output, typed errors and strict loader. Moved all agent rules and the architecture overview from `CLAUDE.md` into `AGENTS.md`.
 - Compacted `AGENTS.md` without dropping rules, and added a "Before every commit" rule: each commit updates `CHANGELOG.md` and `docs/ROADMAP.md`.
 
+### Phase 1 cycle 2 — atomic revision writes and collision handling (PR 10)
+
+- Added `project.write_new_file`: writes to a hidden `.tmp` file in the target directory, fsyncs it, then publishes
+  with a hard link that never overwrites an existing file; where hard links are supported, nothing partial is left
+  on failure. Filesystems without hard links fall back to an exclusive create (still no-clobber, but a crash
+  mid-write can leave a partial file).
+- `revision` now runs under the project lock and publishes through `write_new_file`: it never overwrites an existing
+  file ("Revision file already exists: <name>", exit 5) and regenerates a revision id that already exists in history
+  (at most 5 attempts). On a reported failure it leaves no partial `.json` or `.tmp`; only a crash during the
+  no-hard-link fallback can leave a partial `.json`.
+- Recorded the post-PR 10 test baseline (883 passed, 19 skipped).
+- Clarified in `CLI_SPEC.md` that the no-hard-link fallback is not crash-atomic.
+- Applied the same qualifier in `ROADMAP.md` and refreshed its status date and cycle-2 status line.
+- `write_new_file` no longer reads the process umask, which meant briefly setting it to 0 for every thread. The temp
+  file and the fallback file are created with `O_EXCL` and mode `0o666`, so the OS applies the umask at creation. A
+  temp name that already exists is skipped and left untouched.
+
 ### Phase 1 cycle 2 — line-ending recovery for v0 (`restamp`, PR 9)
 
 - Added `promptmigrate restamp --env <env>` (ADR-027): an explicit, all-or-nothing command that re-stamps the ledger

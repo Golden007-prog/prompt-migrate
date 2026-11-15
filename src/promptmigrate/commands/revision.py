@@ -10,17 +10,36 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .. import draftdiff, output, project, protocol, revisions, secretscan
-from ..errors import LegacyRevisionWarning, SchemaError, SecretDetectedError, SecretInHistoryWarning
+from ..errors import LegacyRevisionWarning, SchemaError, SecretDetectedError, SecretInHistoryWarning, StorageError
+from ..store import lock
+
+_ID_ATTEMPTS = 5
+
+
+def _new_id(taken: set[str]) -> str:
+    """A fresh 12-hex revision id that is not already in history."""
+    for _ in range(_ID_ATTEMPTS):
+        rid = uuid.uuid4().hex[:12]
+        if rid not in taken:
+            return rid
+    raise StorageError(f"Could not generate a unique revision id after {_ID_ATTEMPTS} attempts")
 
 
 def revision(project_dir: Path, message: str) -> revisions.Revision:
     if not message.strip():
         raise SchemaError("Revision message cannot be empty")
+    # History is read inside the lock, so two concurrent `revision` calls serialize and the second one diffs against
+    # the first one's new head (I18).
+    with lock._project_lock(project_dir):
+        return _write_revision(project_dir, message)
+
+
+def _write_revision(project_dir: Path, message: str) -> revisions.Revision:
     all_revisions = revisions.load_revisions(project_dir)
     changes = draftdiff.draft_diff(project_dir)
     if not changes:
         raise SchemaError("No changes between drafts and migration head")
-    rid = uuid.uuid4().hex[:12]
+    rid = _new_id({r.revision for r in all_revisions})
     parent = all_revisions[-1].revision if all_revisions else None
     for name, change in changes.items():
         if change["after"] is not None:
@@ -42,7 +61,7 @@ def revision(project_dir: Path, message: str) -> revisions.Revision:
         "changes": changes,
     }
     text = project.pretty(item)
-    # The file is written with LF line endings on every OS (ADR-026), so this is its exact size.
+    # write_new_file writes these UTF-8 bytes with LF line endings on every OS (ADR-026), so this is its exact size.
     size = len(text.encode("utf-8"))
     if size > protocol.limits.MAX_REVISION_BYTES:
         raise SchemaError(f"New revision would be {size} bytes; the limit is {protocol.limits.MAX_REVISION_BYTES}")
@@ -51,16 +70,18 @@ def revision(project_dir: Path, message: str) -> revisions.Revision:
             carried = protocol.config_violations(name, change["before"])
             if carried:
                 warnings.warn(f"revision {rid}: {name} before carries {', '.join(carried)} from history "
-                              "(copied for compatibility)", LegacyRevisionWarning, stacklevel=2)
+                              "(copied for compatibility)", LegacyRevisionWarning, stacklevel=3)
     for name, change in changes.items():
         if change["before"] is not None:
             for finding in secretscan.scan(name, change["before"], allow):
                 warnings.warn(f"{finding.name} {finding.path} {finding.rule} copied from history into before; "
-                              "the credential must be rotated", SecretInHistoryWarning, stacklevel=2)
+                              "the credential must be rotated", SecretInHistoryWarning, stacklevel=3)
     root = project.require_init(project_dir)
     path = root / "versions" / f"{rid}_{re.sub(r'[^a-z0-9]+', '_', message.lower()).strip('_')[:50] or 'revision'}.json"
-    with open(path, "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
+    try:
+        project.write_new_file(path, text)
+    except FileExistsError:
+        raise StorageError(f"Revision file already exists: {path.name}") from None
     return revisions.load_revisions(project_dir)[-1]
 
 

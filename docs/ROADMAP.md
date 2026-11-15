@@ -1,6 +1,6 @@
 # ROADMAP — From local prototype to reliable open-source project
 
-> Milestones are **plans**, not shipping promises. Status checked against the code on 2026-11-13.
+> Milestones are **plans**, not shipping promises. Status checked against the code on 2026-11-15.
 
 ## Phase 0 — Existing proof of concept
 
@@ -18,7 +18,7 @@
 
 ## Phase 1 — Harden migration core (first implementation priority)
 
-**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026). The integrity guidance now distinguishes v0 raw-byte checks from v1 canonical-content checks. Finishing cycle 2 does **not** finish Phase 1.
+**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026; `restamp`, ADR-027; no-clobber revision writes, PR 10). The integrity guidance now distinguishes v0 raw-byte checks from v1 canonical-content checks. Finishing cycle 2 does **not** finish Phase 1.
 
 ### Cycle 1 (PRs 1–6 + 3b)
 
@@ -37,7 +37,8 @@
   - 2026-11-13: v0 frozen (ADR-025); protocol v1 with canonical checksums shipped, and new revisions are v1 with LF line endings (ADR-026). Baseline after PR 8: 802 passed, 18 skipped.
   - 2026-11-13: explicit `restamp` for v0 ledger rows whose mismatch is line endings only (ADR-027). Baseline after PR 9: 854 passed, 18 skipped.
   - 2026-11-14: review fix: `restamp` removed from the docs' list of commands that reject an eligible line-ending-only row with exit 4 (it re-stamps and succeeds). Baseline unchanged: 854 passed, 18 skipped.
-- [ ] Atomic revision file generation and collision handling.
+- [x] Atomic revision file generation and collision handling.
+  - 2026-11-14: `revision` writes through `project.write_new_file` under the project lock: no overwrite, no partial file where hard links are supported, colliding ids regenerated (I17). CLI_SPEC notes the no-hard-link fallback is not crash-atomic. New files get the umask mode from the OS at creation; the process umask is never read or changed. Baseline after PR 10: 883 passed, 19 skipped.
 - [ ] `validate` command.
 - [ ] Concurrency tests and the fault-injection suite.
 - [ ] Package-install smoke tests.
@@ -83,4 +84,4 @@ No SaaS dashboard, no visual prompt editor, no paid cloud control plane, no dire
 
 ## First next step
 
-Phase 1 cycle 2 is under way. Protocol v1 is shipped (ADR-026), so new revisions are immune to formatting-only changes; integrity guidance now reflects the separate v0 and v1 rules. `restamp`, an explicit, opt-in re-stamp of v0 ledger rows whose mismatch is line endings only, is shipped (ADR-027); v0 hash semantics are unchanged. Verifying commands name `restamp` when a mismatch is line endings only. Next: atomic revision file generation and collision handling. Use [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), and keep to small tested PRs.
+Phase 1 cycle 2 is under way. Protocol v1 is shipped (ADR-026), so new revisions are immune to formatting-only changes; integrity guidance now reflects the separate v0 and v1 rules. `restamp`, an explicit, opt-in re-stamp of v0 ledger rows whose mismatch is line endings only, is shipped (ADR-027); v0 hash semantics are unchanged. Verifying commands name `restamp` when a mismatch is line endings only. Revision files are never overwritten, and are written atomically where hard links are supported (PR 10); the no-hard-link fallback is not crash-atomic. Next: the source-only `validate` command. Use [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), and keep to small tested PRs.

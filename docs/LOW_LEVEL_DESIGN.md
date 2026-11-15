@@ -10,7 +10,7 @@ src/promptmigrate/
   errors.py          error and warning types                                     layer 0
   protocol/          limits, jsonloader (strict JSON), equality, rules           layer 1
   secretscan.py      heuristic secret rules, allowlist parsing, redaction        layer 2
-  project.py         .promptmigrate/ layout, drafts, secret allowlist            layer 3
+  project.py         layout, drafts, secret allowlist, no-clobber file publish   layer 3
   revisions.py       Revision, load_revisions (parse + graph), replay            layer 4
   store/             environments (manifest, adoption), lock, sqlite (ro/rw)     layer 4
   draftdiff.py       drafts vs replayed source head, redacted diff               layer 5
