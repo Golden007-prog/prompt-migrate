@@ -18,7 +18,7 @@
 
 ## Phase 1 — Harden migration core (first implementation priority)
 
-**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026; `restamp`, ADR-027; no-clobber revision writes, PR 10). The integrity guidance now distinguishes v0 raw-byte checks from v1 canonical-content checks. Package-install smoke tests are shipped (PR #67, #13); CI passed on `main` at `73fd689`. Finishing cycle 2 does **not** finish Phase 1.
+**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026; `restamp`, ADR-027; no-clobber revision writes, PR 10). The integrity guidance now distinguishes v0 raw-byte checks from v1 canonical-content checks. Package-install smoke tests are shipped (PR #67, #13; hardened in PR #78); CI passed on `main` at `059a1b9`. Finishing cycle 2 does **not** finish Phase 1.
 
 ### Cycle 1 (PRs 1–6 + 3b)
 
@@ -40,7 +40,7 @@
 - [x] Atomic revision file generation and collision handling.
   - 2026-11-14: `revision` writes through `project.write_new_file` under the project lock: no overwrite, no partial file where hard links are supported, colliding ids regenerated (I17). CLI_SPEC notes the no-hard-link fallback is not crash-atomic. New files get the umask mode from the OS at creation; the process umask is never read or changed. Baseline after PR 10: 883 passed, 19 skipped.
 - [x] CLI `--version` flag: prints package version via `importlib.metadata` with fallback to `__version__` (PR 70, #16).
-- [x] Package-install smoke tests (#13, PR #67): wheel and sdist install into separate virtual environments outside the checkout, then run a full CLI round trip. The import guard also verifies namespace package portions (PR #78). CI passed on `main` at `73fd689`. Baseline after PR #67: 888 passed, 19 skipped (Windows 11, Python 3.11.9).
+- [x] Package-install smoke tests (#13, PR #67): wheel and sdist install into separate virtual environments outside the checkout, then run a full CLI round trip. The import guard also verifies namespace package portions (PR #78). Baseline on `main` at `059a1b9`: 890 passed, 19 skipped (Windows 11, Python 3.11.9).
 - [ ] `validate` command (#10).
 - [ ] Concurrency tests and the fault-injection suite (#11, #12, #31, #32, #33), plus lock and file-mode follow-ups (#79).
 - [ ] README commands as executable smoke tests (#21).
