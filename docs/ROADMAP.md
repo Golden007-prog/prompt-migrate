@@ -18,7 +18,7 @@
 
 ## Phase 1 — Harden migration core (first implementation priority)
 
-**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026; `restamp`, ADR-027; no-clobber revision writes, PR 10). The integrity guidance now distinguishes v0 raw-byte checks from v1 canonical-content checks. Finishing cycle 2 does **not** finish Phase 1.
+**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026; `restamp`, ADR-027; no-clobber revision writes, PR 10). The integrity guidance now distinguishes v0 raw-byte checks from v1 canonical-content checks. Package-install smoke checks are implemented; all 12 CI jobs passed on commit `968a9de`; the revision synchronized with main awaits its own CI run. Finishing cycle 2 does **not** finish Phase 1.
 
 ### Cycle 1 (PRs 1–6 + 3b)
 
@@ -42,7 +42,7 @@
 - [x] CLI `--version` flag: prints package version via `importlib.metadata` with fallback to `__version__` (PR 70, #16). Baseline: 899 passed, 6 skipped.
 - [ ] `validate` command.
 - [ ] Concurrency tests and the fault-injection suite.
-- [ ] Package-install smoke tests.
+- [ ] Package-install smoke tests: implementation uses fresh build output and separate install environments on Linux hosts for Python 3.10, 3.12 and 3.13. Mark complete after the current revision passes all Linux, Windows and macOS CI jobs.
 - [ ] Append-only events table; `rebase` for unapplied revisions.
 
 **Exit:** correct, stable local CLI with comprehensive automated evidence and honest documentation.
@@ -85,4 +85,4 @@ No SaaS dashboard, no visual prompt editor, no paid cloud control plane, no dire
 
 ## First next step
 
-Phase 1 cycle 2 is under way. Protocol v1 is shipped (ADR-026), so new revisions are immune to formatting-only changes; integrity guidance now reflects the separate v0 and v1 rules. `restamp`, an explicit, opt-in re-stamp of v0 ledger rows whose mismatch is line endings only, is shipped (ADR-027); v0 hash semantics are unchanged. Verifying commands name `restamp` when a mismatch is line endings only. Revision files are never overwritten, and are written atomically where hard links are supported (PR 10); the no-hard-link fallback is not crash-atomic. Next: the source-only `validate` command. Use [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), and keep to small tested PRs.
+Phase 1 cycle 2 is under way. Protocol v1 is shipped (ADR-026), so new revisions are immune to formatting-only changes; integrity guidance now reflects the separate v0 and v1 rules. `restamp`, an explicit, opt-in re-stamp of v0 ledger rows whose mismatch is line endings only, is shipped (ADR-027); v0 hash semantics are unchanged. Verifying commands name `restamp` when a mismatch is line endings only. Revision files are never overwritten, and are written atomically where hard links are supported (PR 10); the no-hard-link fallback is not crash-atomic. Package-install smoke checks passed all 12 CI jobs on `968a9de` and await CI after synchronizing with main; the source-only `validate` command remains next. Use [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), and keep to small tested PRs.
