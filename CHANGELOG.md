@@ -4,9 +4,9 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 
 ## Unreleased
 
-- Follow-up to package smoke checks: build into a fresh temporary directory, run the Linux smoke step inside the existing Python-version CI image, and keep roadmap completion pending the new CI run.
+- Package smoke checks now build into a fresh temporary directory, excluding stale local artifacts; roadmap completion remains pending CI for the current revision.
 - Added CI smoke tests that install wheel and sdist artifacts into separate virtual environments outside the checkout, verify import origins, and run the migration CLI through a complete draft round trip.
-
+- Updated the CodeRabbit workflow rule in `.coderabbit.yaml`: it no longer forbids host-side CI jobs, matching the native Windows/macOS test jobs and host-side package-install smoke tests (fixes #73).
 - Added Commands, Code style, and Issues and pull requests sections to `AGENTS.md`. `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, `HERMES.md` and `.github/copilot-instructions.md` now only point to `AGENTS.md`; `CLAUDE.md` and `GEMINI.md` import it with `@AGENTS.md`.
 - Replaced the local-Windows merge gate in `AGENTS.md` with a CI-based one: every CI job green on all OS/Python combinations, branch up to date with `main`, resolved review threads, and real test output in the PR. Changes reach `main` only through a reviewed pull request. The PR template now asks for `Closes #N` and green CI.
 - Added `uv.lock`, pinning the dev dependencies for `uv run --extra dev`. The runtime stays stdlib-only; `pip install -e ".[dev]"` is unchanged.

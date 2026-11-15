@@ -146,8 +146,8 @@ Record test counts/coverage and measured performance in CI when available; do no
 
 ## Installed distribution smoke checks
 
-The `docker-test` CI job builds and checks both artifacts inside its Python 3.10, 3.12 and 3.13 CI images.
-The Windows and macOS source suites remain native. Each smoke run builds into a fresh temporary directory,
+The `package-smoke` CI job builds and checks both artifacts on Linux hosts with Python 3.10, 3.12 and 3.13.
+The full source suites still run in Linux containers and natively on Windows and macOS. Each smoke run builds into a fresh temporary directory,
 so old artifacts in `dist/` cannot enter the check. Run locally in a POSIX shell with:
 
 ```bash

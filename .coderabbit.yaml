@@ -22,9 +22,11 @@ reviews:
         Never put token-shaped secrets in fixtures; construct fake secret values at runtime.
     - path: ".github/workflows/**"
       instructions: |
-        Verify that the full test suite runs inside the CI Docker container, with no separate host-side
-        test job. Keep workflow token permissions least-privilege and disable checkout credential
-        persistence when later Git operations are unnecessary.
+        Verify that the full test suite still runs on every OS and Python version in the matrix: inside
+        the CI Docker container on Linux, and natively on Windows and macOS. Host-side jobs are expected
+        there and for package-install smoke tests, which need a clean environment outside the checkout.
+        Keep workflow token permissions least-privilege and disable checkout credential persistence
+        when later Git operations are unnecessary.
 knowledge_base:
   code_guidelines:
     enabled: true

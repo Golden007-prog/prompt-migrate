@@ -12,6 +12,6 @@ COPY tests ./tests
 COPY scripts ./scripts
 COPY examples ./examples
 
-RUN python -m pip install --no-cache-dir ".[dev]" build
+RUN python -m pip install --no-cache-dir ".[dev]"
 
 CMD ["python", "-m", "pytest", "-v"]
