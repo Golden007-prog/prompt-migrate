@@ -141,10 +141,15 @@ project/
 
 ## Use in CI
 
+In your project's workflow, install PromptMigrate from its repository, then replay every revision into a throwaway environment and verify it:
+
 ```yaml
-- run: python -m pip install -e .
-- run: promptmigrate check --env staging --require-head
+- run: python -m pip install "git+https://github.com/himanshu231204/prompt-migrate.git"
+- run: promptmigrate upgrade head --env dev
+- run: promptmigrate check --env dev --require-head
 ```
+
+`states/` is gitignored, so a fresh CI checkout starts every environment at the empty base. This job proves the revision history loads, applies cleanly in order from scratch, and verifies. It can't check a long-lived environment such as `staging`, because that state lives only on the machine that owns it; shared remote state is planned for Phase 3.
 
 `check` exits non-zero on drift, an edited applied revision, or (with `--require-head`) pending revisions. It verifies **integrity, not prompt quality**: it doesn't measure answer quality or prompt-injection resistance.
 
