@@ -1,6 +1,6 @@
 # AGENTS.md — AI coding agent instructions for PromptMigrate
 
-These rules are mandatory for every AI coding agent (Claude Code, Codex, Cursor, Copilot, Gemini or any other) and every change. All rules live here; tool-specific files such as `CLAUDE.md` hold only orientation and never add to or override them.
+These rules are mandatory for every AI coding agent (Claude Code, Codex, Cursor, Copilot, Gemini, Hermes or any other) and every change. All rules live here. The tool-specific files `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, `HERMES.md` and `.github/copilot-instructions.md` only point to this file (plus tool-specific orientation such as where plans are saved) and never add to or override a rule; to change a rule, edit this file.
 
 ## Mission
 
@@ -10,6 +10,26 @@ These rules are mandatory for every AI coding agent (Claude Code, Codex, Cursor,
 
 - Code: `src/promptmigrate/` (ADR-022); tests: `tests/` (suite map in `docs/TESTING_STRATEGY.md`).
 - Docs: start with `README.md` and `docs/HANDOFF.md`. Scope and status: `docs/ROADMAP.md`. Decisions: `docs/DECISIONS.md`. Open questions: `docs/OPEN_QUESTIONS.md`.
+
+## Commands
+
+Run from the repository root with Python ≥ 3.10. `pyproject.toml` sets `pythonpath = ["src"]` for pytest, so the editable install is optional for tests.
+
+```bash
+python -m pip install -e ".[dev]"                        # dev install: pytest, hypothesis, pytest-cov
+python -m pytest -q                                      # whole suite (required before every commit)
+python -m pytest tests/unit                              # one suite: unit, integration, contract, security
+python -m pytest tests/test_core.py::PromptMigrateTests::test_state_drift_detected   # one test
+python -m pytest -k restamp                              # tests matching a name
+python -m pytest --cov=promptmigrate                     # coverage (local only, no percentage gate)
+PYTHONPATH=src python -m unittest discover -s tests -v   # the original 7 unittest tests
+PYTHONPATH=src python -m promptmigrate --project <dir> history   # CLI from source
+docker build -f Dockerfile.ci --build-arg PYTHON_VERSION=3.12 -t promptmigrate-ci . && docker run --rm promptmigrate-ci   # Linux CI job, locally
+```
+
+- PowerShell: set `$env:PYTHONPATH = 'src'` instead of the `PYTHONPATH=src` prefix.
+- WSL or no usable `python`: prefix commands with `uv run --extra dev`, e.g. `uv run --extra dev python -m pytest -q`.
+- No linter, formatter or type checker is configured yet (issues #19, #20 and #37). Don't add one outside those issues.
 
 ## Architecture
 
@@ -48,6 +68,19 @@ Flow: `load_revisions()` enforces one linear chain and replays it from `{}`. `re
 - `core.py` re-exports and defines nothing; keep its exported names and signatures stable.
 - Call collaborators through their module (`project.read_drafts(...)`); in tests, patch the defining module, never `core` or `cli`.
 - `cli.py` only parses and dispatches; each verb lives in `commands/<verb>.py` and returns an `output.Result`.
+- Imports only point down the layer order above; `tests/unit/test_module_layout.py` enforces it.
+
+## Code style
+
+Match the surrounding code. These conventions are followed across `src/`:
+
+- Every module starts with a one-line docstring saying what it owns; modules with annotations add `from __future__ import annotations`. Public functions get a one-line docstring and full type hints.
+- Import within the package by module (`from . import project, revisions`) and call through it (`project.read_drafts(...)`). Import names directly only when a test needs to patch them, and say so in a comment.
+- Private helpers use a leading underscore (`_verify`). A trailing underscore avoids shadowing a module name (`revisions_`).
+- User-facing failures raise a typed error from `errors.py` (a `MigrationError` subclass, mapped to an exit code in `output.py`); warnings subclass `PromptMigrateWarning`. Never raise bare `ValueError`/`RuntimeError` for them, and never `print` outside `output.py` and `cli.py`.
+- Double quotes and f-strings; keep lines within about 120 characters.
+- Comments explain *why* (an invariant, a platform quirk, a test hook), not *what*. Keep them sparse.
+- Tests: use the `project` fixture (`tests/conftest.py`) and the helpers in `tests/pmtest.py`, put each test in the suite folder it belongs to, and name it after the behavior it checks (`test_check_does_not_create_files`).
 
 ## Testing
 
@@ -61,6 +94,13 @@ Flow: `load_revisions()` enforces one linear chain and replays it from `{}`. `re
 - `CHANGELOG.md`: add an entry under **Unreleased**.
 - `docs/ROADMAP.md`: tick finished items and update the status lines and "First next step".
 - Behavior changes also update `docs/CLI_SPEC.md`, `docs/MIGRATION_PROTOCOL.md` and `docs/DECISIONS.md` in the same PR.
+
+## Issues and pull requests
+
+- One task per issue and one issue per PR. Link it in the PR body with `Closes #N`. If the work turns out to be two tasks, split the issue instead of widening the PR.
+- Issues carry a `phase-N` label and milestone. Newcomers start from `good first issue`.
+- `rfc` issues and Phase 2–3 issues need an accepted ADR in `docs/DECISIONS.md` before any implementation code.
+- External contributors fork the repository and open a PR against `main`, filling in the PR template.
 
 ## Git
 
