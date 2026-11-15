@@ -4,7 +4,7 @@
 # Settings -> Secrets and variables -> Actions:
 #   secret    OCR_LLM_URL         https://integrate.api.nvidia.com/v1/chat/completions
 #   secret    OCR_LLM_AUTH_TOKEN  nvapi-... key from build.nvidia.com
-#   variable  OCR_LLM_MODEL       moonshotai/kimi-k2.6 (fallback: deepseek-ai/deepseek-v4.1-flash)
+#   variable  OCR_LLM_MODEL       optional; defaults to deepseek-ai/deepseek-v4.1-flash (alternative: moonshotai/kimi-k2.6)
 #
 # Re-run on demand by commenting "/open-code-review" on a PR (members, owners and collaborators only).
 name: OpenCodeReview
@@ -76,7 +76,7 @@ jobs:
           ocr_version: 1.13.10
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
-          llm_model: ${{ vars.OCR_LLM_MODEL }}
+          llm_model: ${{ vars.OCR_LLM_MODEL || 'deepseek-ai/deepseek-v4.1-flash' }}
           llm_use_anthropic: "false"
           llm_protocol: openai
           # The action's default {"thinking": {"type": "disabled"}} is provider-specific; NIM does not need it.
