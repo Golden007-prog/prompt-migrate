@@ -1,38 +1,47 @@
 <p align="center">
-  <img src="assets/readme-banner.svg" alt="PromptMigrate — ordered, reversible migrations for AI configuration" width="100%" />
+  <img src="assets/readme-banner.svg" alt="PromptMigrate — Alembic-style migrations for LLM prompts and AI agents" width="100%" />
 </p>
 
-# PromptMigrate (working name)
+<p align="center">
+  <a href="https://github.com/himanshu231204/prompt-migrate/actions/workflows/ci.yml"><img src="https://github.com/himanshu231204/prompt-migrate/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license" /></a>
+  <img src="https://img.shields.io/badge/python-3.10%2B-3776ab.svg?logo=python&logoColor=white" alt="Python 3.10+" />
+  <img src="https://img.shields.io/badge/runtime_deps-0_(stdlib_only)-2ea44f.svg" alt="Zero runtime dependencies" />
+  <a href="https://github.com/himanshu231204/prompt-migrate/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22"><img src="https://img.shields.io/github/issues/himanshu231204/prompt-migrate/good%20first%20issue?color=7057ff&label=good%20first%20issues" alt="Good first issues" /></a>
+</p>
 
-**An Alembic-inspired, migration-first CLI for production AI prompts and agent configuration.**
+# PromptMigrate
 
-This is a working **v0.1 local prototype**, not a production deployment service. It keeps Git-tracked, immutable-in-practice revision files for JSON prompt/agent configs. The CLI applies revisions to independent SQLite environment states and rejects drift and modified, already-applied revisions. It does **not** automatically deploy to Langfuse, Foundry, OpenAI, or another runtime.
+**Alembic-style migrations for LLM prompts and AI agent configuration.** Keep prompts and agent configs as Git-tracked JSON, generate ordered, reviewable revisions, apply them to environments, roll them back, and fail CI when an environment drifts from history.
 
-> **Design docs:** see [`docs/`](docs/) — start with [`docs/HANDOFF.md`](docs/HANDOFF.md). The original starter's architecture note is kept at [`docs/archive/STARTER_ARCHITECTURE.md`](docs/archive/STARTER_ARCHITECTURE.md).
+> [!NOTE]
+> PromptMigrate is a **v0.1 local prototype**. Environments are local SQLite files, and nothing is deployed to Langfuse, OpenAI, Azure AI Foundry or any other runtime. See [what is and isn't guaranteed](#safety-and-integrity).
 
-## Why another prompt tool?
+## Why PromptMigrate?
 
-Langfuse, MLflow, Agenta, and promptctl already offer prompt versioning, management, labels, or testing. PromptMigrate is intentionally focused on an **ordered configuration migration protocol**: a migration chain with explicit predecessor revision, reversible before/after state, deterministic upgrade/downgrade behavior, environment state comparison, and CI exit codes. It could eventually integrate with those registries instead of competing with them.
+Langfuse, MLflow, Agenta and promptctl already version and manage prompts. PromptMigrate focuses on something narrower: an **ordered migration protocol** for configuration, the way Alembic does it for database schemas.
 
-Read:
-- https://alembic.sqlalchemy.org/en/latest/api/commands.html
-- https://langfuse.com/docs/prompt-management/overview
-- https://mlflow.org/docs/latest/prompts
-- https://agenta.ai/docs/prompt-management/overview/
+- **Ordered history:** every revision names its predecessor, forming one linear chain.
+- **Reversible:** each revision stores full before/after snapshots, so `downgrade` is deterministic.
+- **Integrity-checked:** applied revisions are checksummed; editing one, or changing an environment by hand, is reported as drift.
+- **CI-friendly:** stable exit codes and `--output json`.
+- **Declarative and safe:** revisions are pure JSON, never executable code. The runtime uses only the Python standard library.
+
+It's designed to sit alongside prompt registries, not replace them.
 
 ## Install
 
-Python 3.10+. In this source checkout:
+Python 3.10 or newer. PromptMigrate is not on PyPI yet ([#55](https://github.com/himanshu231204/prompt-migrate/issues/55)), so install from a clone:
 
 ```bash
+git clone https://github.com/himanshu231204/prompt-migrate.git
+cd prompt-migrate
 python -m pip install -e .
 ```
 
-This only uses Python's standard library at runtime.
-
 ## Five-minute example
 
-In a separate empty project directory:
+In a separate, empty project directory:
 
 ```bash
 promptmigrate init
@@ -48,7 +57,7 @@ promptmigrate check --env dev --require-head
 promptmigrate get assistant --env dev
 ```
 
-Then edit `.promptmigrate/drafts/assistant.json`, and run:
+Then edit `.promptmigrate/drafts/assistant.json` and run:
 
 ```bash
 promptmigrate diff
@@ -58,13 +67,11 @@ promptmigrate current --env staging
 promptmigrate downgrade -1 --env staging
 ```
 
-A revision describes the change from the previous Git-tracked version, **not the state of your local dev database**. Generate a revision only after integrating the latest revisions from your team. For multi-agent systems, add more named files under `.promptmigrate/drafts/`, e.g. `planner.json`, `sql_agent.json`, or `reviewer.json`. Deleting a draft and creating a revision explicitly deletes the prompt in a target environment, with reversible history.
+A revision describes the change from the previous Git-tracked revision, **not from your local dev database**, so pull your team's latest revisions before generating one. For multi-agent systems, add more drafts such as `planner.json` or `reviewer.json`. Deleting a draft and generating a revision deletes that config in the target environment, reversibly.
 
-A runnable two-agent walkthrough (init → revision → upgrade → check → downgrade) is in [`examples/multi-agent-basic/`](examples/multi-agent-basic/).
+A runnable two-agent walkthrough is in [`examples/multi-agent-basic/`](examples/multi-agent-basic/).
 
-## Example declarative migration
-
-The tool generates a JSON revision like this (abbreviated):
+## What a revision looks like
 
 ```json
 {
@@ -86,123 +93,113 @@ The tool generates a JSON revision like this (abbreviated):
 }
 ```
 
-`before` and `after` are **full JSON snapshots**, not executable code. This makes deterministic reversal possible but has size and Git secret-retention tradeoffs. `null` indicates absent prompt. A revision can change multiple prompts in one atomic transaction.
+`before` and `after` are full JSON snapshots, and `null` means the config is absent. One revision can change several configs in a single atomic transaction. Snapshots make reversal deterministic, at the cost of larger files and keeping old values in Git history.
+
+## How it works
+
+```mermaid
+flowchart LR
+    D["drafts/*.json<br/>desired config"] -- "revision -m" --> V["versions/*.json<br/>ordered revisions (Git)"]
+    V -- "upgrade / downgrade" --> S[("states/#lt;env#gt;.sqlite3<br/>config + applied ledger")]
+    V -. "check: ledger and config<br/>must match history" .-> S
+```
+
+`upgrade` and `downgrade` verify the environment against history, then change the configs and the applied-revision ledger together in one SQLite transaction. If anything doesn't match, the command fails without writing.
 
 ## Commands
 
 | Command | Behavior |
 |---|---|
-| `init` | Create migration workspace and a starter draft |
-| `diff` | Compare local drafts with Git-tracked migration head |
-| `revision -m "..."` | Generate a revision from the draft changes |
-| `history` | Print revision lineage |
-| `current --env dev` | Display current revision for environment |
-| `upgrade head --env dev` | Apply pending migrations atomically |
-| `plan --env dev [--target head]` | Preview the revisions and config changes an upgrade or downgrade would apply; writes nothing |
-| `downgrade -1 --env dev` | Undo the last applied revision |
-| `downgrade base --env dev` | Revert all applied revisions |
-| `check --env dev --require-head` | Detect drift, tampered migration files, and pending changes |
-| `restamp --env dev` | Accept applied v0 revisions whose files changed only in line endings (CRLF ↔ LF); anything else still fails |
-| `get assistant --env dev` | Read a local environment's active prompt config |
-| `env add qa` | Declare a local environment without creating its database |
-| `env list` | List declared environments and whether local state exists |
+| `init` | Create the migration workspace and a starter draft |
+| `diff` | Compare local drafts with the latest revision |
+| `revision -m "..."` | Generate a revision from draft changes |
+| `history` | Print the revision chain |
+| `current --env dev` | Show an environment's current revision |
+| `plan --env dev [--target head]` | Preview what an upgrade or downgrade would change; writes nothing |
+| `upgrade head --env dev` | Apply pending revisions atomically |
+| `downgrade -1 --env dev` | Undo the last applied revision (`base` reverts all) |
+| `check --env dev --require-head` | Detect drift, edited applied revisions and pending revisions |
+| `restamp --env dev` | Accept applied v0 revisions whose files changed only in line endings |
+| `get assistant --env dev` | Read a config from a local environment |
+| `env add qa` / `env list` | Declare and list local environments |
 
-To target a different local repository location, use the global flag `promptmigrate --project /path/to/repo history`.
+Global flags: `--project <dir>` targets another project directory, and `--output json` prints machine-readable results. Exit codes are documented in [`docs/CLI_SPEC.md`](docs/CLI_SPEC.md).
 
-## Layout
+## Project layout
 
 ```text
 project/
   .promptmigrate/
-    drafts/                # desired JSON prompt configurations (Git tracked)
-      assistant.json
-    environments.json      # declared local environment names and metadata (Git tracked)
-    versions/              # migrations with before/after state (Git tracked)
-      <revision>_<message>.json
-    states/                # local environment SQLite databases (gitignored)
-      dev.sqlite3
-      staging.sqlite3
-    .gitignore
+    drafts/              # desired JSON configs (Git tracked)
+    versions/            # revisions with before/after snapshots (Git tracked)
+    environments.json    # declared environments (Git tracked)
+    states/              # local SQLite state per environment (gitignored)
 ```
 
-`states/prod.sqlite3` is only a **local simulation named prod**, not a shared or production deployment state! For true multi-host environments we need a central Postgres-backed coordination service / provider adapter and an atomic activation pointer. Never mistake local SQLite files for globally deployed state.
+> [!WARNING]
+> `states/prod.sqlite3` is a **local file named prod**, not a production deployment. Production-like names print a warning for this reason.
 
-`init` declares `dev` and `staging`. Environment names resolve case-insensitively to their canonical spelling in `environments.json`, including CLI status labels. Existing projects without that file are inferred in memory; they always include `dev` and `staging`. The first successful mutation persists the manifest and prints an adoption warning; a rejected command writes nothing. `check`, `current`, and `get` use read-only database connections; missing state is the empty base state, and reads never create or repair databases. `env list` reports `<name>: state exists` or `<name>: no state` without opening SQLite. WAL-mode state databases are rejected by read-only commands to prevent SQLite sidecar creation.
+## Use in CI
 
-## CI example
-
-GitHub Actions runs the complete test suite inside Linux Docker containers for
-Python 3.10, 3.12, and 3.13. To run the Python 3.12 container locally:
-
-```bash
-docker build -f Dockerfile.ci -t promptmigrate-ci .
-docker run --rm promptmigrate-ci
-```
-
-CI runs the complete suite in Linux containers and natively on Windows and
-macOS for Python 3.10, 3.12, and 3.13. Python 3.11 remains covered by the
-local Windows merge gate.
+In your project's workflow, install PromptMigrate from its repository, then replay every revision into a throwaway environment and verify it:
 
 ```yaml
-- run: python -m pip install -e .
-- run: python -m unittest discover -s tests -v
-- run: promptmigrate history
-- run: promptmigrate diff
+- run: python -m pip install "git+https://github.com/himanshu231204/prompt-migrate.git"
+- run: promptmigrate upgrade head --env dev
+- run: promptmigrate check --env dev --require-head
 ```
 
-For a real production rollout the future release pipeline must additionally run mandatory eval suites, require approval, ensure state and provider consistency, check migration drift with shared state, and only then activate the new release. A passing `check` **does not measure answer quality or prompt-injection resistance**.
+`states/` is gitignored, so a fresh CI checkout starts every environment at the empty base. This job proves the revision history loads, applies cleanly in order from scratch, and verifies. It can't check a long-lived environment such as `staging`, because that state lives only on the machine that owns it; shared remote state is planned for Phase 3.
 
-## Tests
+`check` exits non-zero on drift, an edited applied revision, or (with `--require-head`) pending revisions. It verifies **integrity, not prompt quality**: it doesn't measure answer quality or prompt-injection resistance.
+
+## Safety and integrity
+
+**Guaranteed today:**
+
+- Applying or reverting several revisions is atomic **inside one local SQLite database**.
+- Applied revisions are checksummed. Editing one blocks that environment (v1 revisions ignore formatting-only changes).
+- Out-of-band changes to an environment's configs are rejected as drift.
+- History is one linear chain; parallel branches must be resolved first.
+- Revisions are pure JSON; no migration code is ever executed.
+- No provider API keys or network calls are needed.
+- Secret-like values are refused in new revisions and redacted in `diff`/`get` output. Detection is heuristic, and secrets already in Git must be rotated.
+
+**Not guaranteed yet:** transactions across model providers, locks across hosts, remote state, signed revisions, authentication, evaluation gates, canary releases or an append-only audit history. Don't use v0.1 to manage live production prompts or secrets.
+
+## Roadmap
+
+The plan is in [`docs/ROADMAP.md`](docs/ROADMAP.md) and tracked as GitHub milestones:
+
+1. [**Phase 1: Harden the migration core**](https://github.com/himanshu231204/prompt-migrate/milestone/1) (in progress): `validate`, concurrency and fault-injection tests, package smoke tests.
+2. [**Phase 2: Evaluation and policy gates**](https://github.com/himanshu231204/prompt-migrate/milestone/2)
+3. [**Phase 3: Production release protocol**](https://github.com/himanshu231204/prompt-migrate/milestone/3)
+4. [**Phase 4: Stable community release**](https://github.com/himanshu231204/prompt-migrate/milestone/4)
+
+## Contributing
+
+Contributions are welcome. Every issue is a single task with acceptance criteria.
+
+- New here? Pick a [**good first issue**](https://github.com/himanshu231204/prompt-migrate/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+- Want to shape the design? Join an [**RFC discussion**](https://github.com/himanshu231204/prompt-migrate/issues?q=is%3Aissue+is%3Aopen+label%3Arfc).
+- Read [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup and where code lives, and [`AGENTS.md`](AGENTS.md) for the project rules (they apply to people and AI coding agents alike).
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m pytest -q                                      # whole suite: tests/{unit,integration,contract,security}
-PYTHONPATH=src python -m unittest discover -s tests -v   # the original seven starter tests
+python -m pytest -q
 ```
 
-Tests cover revision generation, history, separate environment revisions, deterministic rollback, deletion, drift detection, tampered migration files, multiple prompt migrations, strict parsing, declared environments, read-only reads and the secret safeguard. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to contribute and where each part of the code lives.
+Design docs start at [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
-## Safety and integrity guarantees in v0.1
+## Community
 
-- Entire multi-revision apply/revert transaction is atomic **inside a single local SQLite database**.
-- Migration contents are hashed when applied; editing an applied revision fails verification.
-- Unexpected in-place changes to local deployed prompts are rejected as **drift**.
-- Supported migration history is **one linear revision chain**; parallel branches require manual resolution first.
-- Config documents are pure JSON; **no arbitrary migration Python is executed**.
-- No provider API keys or network calls are required.
-- Secret-like values are refused in new revision content and redacted in `diff`/`get` output. Detection is heuristic and can miss secrets; secrets already committed stay in Git and must be rotated.
-
-**Not yet guaranteed:** distributed transactions with model providers; locks across hosts; remote state durability; signed revisions; user authentication/authorization; prompt eval gates; runtime cache invalidation; canary releases; audit-grade append-only history; automated recovery when external APIs partially fail. Never use this MVP to administer live production prompts or production secrets.
-
-## Suggested roadmap
-
-**v0.2:** evaluators (golden set / schema / security), policy-as-code gates, required review approvals.
-
-**v0.3:** Postgres coordination DB, remote registry adapters, outbox + reconcile loop, reconcile/repair commands, SDK resolution by immutable release manifest.
-
-**v0.4:** signed revisions, role-based approvals, staged/canary promotion, metrics-driven rollback, runtime feature flags and cache invalidation.
-
-## Architecture direction
-
-```text
-Git drafts ─> revision generator ─> reviewed immutable revision files
-                                               |
-                                         plan + evaluation
-                                               |
-                                           approval gate
-                                               |
-                                     environment migration engine
-                                               |
-                              registry adapters + release manifest
-                                               |
-                               AI app/agent runtime resolves release
-```
-
-Prompt releases should eventually version **bundles**, not just one string: system/developer messages, model and parameters, tools, response schema, guardrails, routing metadata, and evaluation suite ID. Never place secrets in versioned content; use secret references.
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- Report security issues privately: see [`SECURITY.md`](SECURITY.md)
+- Changes are listed in [`CHANGELOG.md`](CHANGELOG.md)
 
 ## License
 
-MIT. A final package/repository name should be checked for conflicts before publishing to PyPI or GitHub.
+[MIT](LICENSE)
 
 <!-- gumroad-footer -->
 ---
