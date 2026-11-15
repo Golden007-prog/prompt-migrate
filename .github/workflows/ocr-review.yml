@@ -4,8 +4,11 @@
 # Settings -> Secrets and variables -> Actions:
 #   secret    OCR_LLM_URL         https://integrate.api.nvidia.com/v1/chat/completions
 #   secret    OCR_LLM_AUTH_TOKEN  nvapi-... key from build.nvidia.com
-#   variable  OCR_LLM_MODEL           optional; defaults to minimaxai/minimax-m3.1-flash
-#   variable  OCR_LLM_FALLBACK_MODEL  optional; defaults to nvidia/nemotron-3-ultra-550b-a55b, used when the primary run fails
+#   variable  OCR_LLM_MODEL           optional; defaults to nvidia/nemotron-3-ultra-550b-a55b
+#   variable  OCR_LLM_FALLBACK_MODEL  optional; defaults to nvidia/nemotron-3.5-super-vl-120b-a12b, used when the primary run fails
+#
+# Both defaults were the most reliable models on NVIDIA's free endpoint in the community NIMStats benchmark
+# (https://vadash.github.io/NIMStats/); DeepSeek V4.1 Flash, the first default, answered under 20% of its requests.
 #
 # Re-run on demand by commenting "/open-code-review" on a PR (members, owners and collaborators only).
 name: OpenCodeReview
@@ -82,7 +85,7 @@ jobs:
           ocr_version: 1.13.10
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
-          llm_model: ${{ vars.OCR_LLM_MODEL || 'minimaxai/minimax-m3.1-flash' }}
+          llm_model: ${{ vars.OCR_LLM_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b' }}
           llm_use_anthropic: "false"
           llm_protocol: openai
           # The action's default {"thinking": {"type": "disabled"}} is provider-specific; NIM does not need it.
@@ -109,7 +112,7 @@ jobs:
           ocr_version: 1.13.10
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
-          llm_model: ${{ vars.OCR_LLM_FALLBACK_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b' }}
+          llm_model: ${{ vars.OCR_LLM_FALLBACK_MODEL || 'nvidia/nemotron-3.5-super-vl-120b-a12b' }}
           llm_use_anthropic: "false"
           llm_protocol: openai
           llm_extra_body: "{}"
