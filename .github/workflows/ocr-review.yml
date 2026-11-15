@@ -4,8 +4,8 @@
 # Settings -> Secrets and variables -> Actions:
 #   secret    OCR_LLM_URL         https://integrate.api.nvidia.com/v1/chat/completions
 #   secret    OCR_LLM_AUTH_TOKEN  nvapi-... key from build.nvidia.com
-#   variable  OCR_LLM_MODEL           optional; defaults to deepseek-ai/deepseek-v4.1-flash
-#   variable  OCR_LLM_FALLBACK_MODEL  optional; defaults to minimaxai/minimax-m3.1-flash, used when the primary run fails
+#   variable  OCR_LLM_MODEL           optional; defaults to minimaxai/minimax-m3.1-flash
+#   variable  OCR_LLM_FALLBACK_MODEL  optional; defaults to nvidia/nemotron-3-ultra-550b-a55b, used when the primary run fails
 #
 # Re-run on demand by commenting "/open-code-review" on a PR (members, owners and collaborators only).
 name: OpenCodeReview
@@ -73,6 +73,8 @@ jobs:
 
       - name: Run OpenCodeReview (primary model)
         id: primary
+        # Cap each review so a stalled model leaves the fallback time to finish within the job's 30 minutes.
+        timeout-minutes: 12
         # A failed review stops the action before it posts anything, so the fallback below can safely run in full.
         continue-on-error: true
         uses: alibaba/open-code-review@7e5ce06c88de5ce81df5dc4f24e2e485b517fae8 # v1.13.10
@@ -80,12 +82,13 @@ jobs:
           ocr_version: 1.13.10
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
-          llm_model: ${{ vars.OCR_LLM_MODEL || 'deepseek-ai/deepseek-v4.1-flash' }}
+          llm_model: ${{ vars.OCR_LLM_MODEL || 'minimaxai/minimax-m3.1-flash' }}
           llm_use_anthropic: "false"
           llm_protocol: openai
           # The action's default {"thinking": {"type": "disabled"}} is provider-specific; NIM does not need it.
           llm_extra_body: "{}"
-          llm_timeout: "300"
+          # A request NIM has not started answering in 2 minutes is queued, not slow; fail it rather than wait.
+          llm_timeout: "120"
           # NVIDIA's free tier is rate limited (about 40 requests per minute); OCR's default of 8 sub-agents hits 429s.
           review_concurrency: "3"
           effort: medium
@@ -100,16 +103,17 @@ jobs:
 
       - name: Run OpenCodeReview (fallback model)
         if: steps.primary.outcome == 'failure'
+        timeout-minutes: 15
         uses: alibaba/open-code-review@7e5ce06c88de5ce81df5dc4f24e2e485b517fae8 # v1.13.10
         with:
           ocr_version: 1.13.10
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
-          llm_model: ${{ vars.OCR_LLM_FALLBACK_MODEL || 'minimaxai/minimax-m3.1-flash' }}
+          llm_model: ${{ vars.OCR_LLM_FALLBACK_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b' }}
           llm_use_anthropic: "false"
           llm_protocol: openai
           llm_extra_body: "{}"
-          llm_timeout: "300"
+          llm_timeout: "120"
           review_concurrency: "3"
           effort: medium
           max_tokens_budget: "2000000"
