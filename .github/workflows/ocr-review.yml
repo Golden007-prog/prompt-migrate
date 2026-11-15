@@ -1,0 +1,123 @@
+# Advisory AI review of pull requests with Open CodeReview (https://open-codereview.ai/docs/cicd), using NVIDIA's
+# free OpenAI-compatible NIM endpoint. It only posts comments and is not part of the merge gate in AGENTS.md.
+#
+# Settings -> Secrets and variables -> Actions:
+#   secret    OCR_LLM_URL         https://integrate.api.nvidia.com/v1/chat/completions
+#   secret    OCR_LLM_AUTH_TOKEN  nvapi-... key from build.nvidia.com
+#   variable  OCR_LLM_MODEL           optional; defaults to deepseek-ai/deepseek-v4.1-flash
+#   variable  OCR_LLM_FALLBACK_MODEL  optional; defaults to minimaxai/minimax-m3.1-flash, used when the primary run fails
+#
+# Re-run on demand by commenting "/open-code-review" on a PR (members, owners and collaborators only).
+name: OpenCodeReview
+
+# Matching events share a per-PR group so a new review cancels a stale one; any other comment gets a unique group,
+# because concurrency is evaluated before the job's `if` and would otherwise cancel a running review.
+concurrency:
+  group: >-
+    ${{
+      (
+        github.event_name == 'pull_request_target'
+        || (
+          github.event_name == 'issue_comment'
+          && github.event.issue.pull_request
+          && github.event.comment.user.type != 'Bot'
+          && contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'), github.event.comment.author_association)
+          && startsWith(github.event.comment.body, '/open-code-review')
+        )
+      )
+      && format('ocr-{0}', github.event.pull_request.number || github.event.issue.number)
+      || format('noop-{0}', github.run_id)
+    }}
+  cancel-in-progress: true
+
+on:
+  # pull_request_target gives fork PRs access to the secrets. The action only reads the diff and never checks out
+  # or runs PR code; keep it that way, and keep the action pinned to a reviewed commit.
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: |
+      github.event_name == 'pull_request_target'
+      || (
+        github.event_name == 'issue_comment'
+        && github.event.issue.pull_request
+        && github.event.comment.user.type != 'Bot'
+        && contains(fromJSON('["MEMBER","OWNER","COLLABORATOR"]'), github.event.comment.author_association)
+        && startsWith(github.event.comment.body, '/open-code-review')
+      )
+    steps:
+      - name: Resolve PR refs for comment triggers
+        id: pr-context
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            core.setOutput('base_ref', pr.base.ref);
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('title', pr.title);
+
+      - name: Run OpenCodeReview (primary model)
+        id: primary
+        # A failed review stops the action before it posts anything, so the fallback below can safely run in full.
+        continue-on-error: true
+        uses: alibaba/open-code-review@7e5ce06c88de5ce81df5dc4f24e2e485b517fae8 # v1.13.10
+        with:
+          ocr_version: 1.13.10
+          llm_url: ${{ secrets.OCR_LLM_URL }}
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: ${{ vars.OCR_LLM_MODEL || 'deepseek-ai/deepseek-v4.1-flash' }}
+          llm_use_anthropic: "false"
+          llm_protocol: openai
+          # The action's default {"thinking": {"type": "disabled"}} is provider-specific; NIM does not need it.
+          llm_extra_body: "{}"
+          llm_timeout: "300"
+          # NVIDIA's free tier is rate limited (about 40 requests per minute); OCR's default of 8 sub-agents hits 429s.
+          review_concurrency: "3"
+          effort: medium
+          max_tokens_budget: "2000000"
+          # Passed as an input, never interpolated into a shell, so a crafted PR title cannot run commands.
+          background: ${{ github.event.pull_request.title || steps.pr-context.outputs.title }}
+          sticky_summary: "true"
+          incremental: "true"
+          route_categories: style,documentation
+          base_ref: ${{ steps.pr-context.outputs.base_ref }}
+          head_sha: ${{ steps.pr-context.outputs.head_sha }}
+
+      - name: Run OpenCodeReview (fallback model)
+        if: steps.primary.outcome == 'failure'
+        uses: alibaba/open-code-review@7e5ce06c88de5ce81df5dc4f24e2e485b517fae8 # v1.13.10
+        with:
+          ocr_version: 1.13.10
+          llm_url: ${{ secrets.OCR_LLM_URL }}
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: ${{ vars.OCR_LLM_FALLBACK_MODEL || 'minimaxai/minimax-m3.1-flash' }}
+          llm_use_anthropic: "false"
+          llm_protocol: openai
+          llm_extra_body: "{}"
+          llm_timeout: "300"
+          review_concurrency: "3"
+          effort: medium
+          max_tokens_budget: "2000000"
+          background: ${{ github.event.pull_request.title || steps.pr-context.outputs.title }}
+          sticky_summary: "true"
+          incremental: "true"
+          route_categories: style,documentation
+          base_ref: ${{ steps.pr-context.outputs.base_ref }}
+          head_sha: ${{ steps.pr-context.outputs.head_sha }}
+          # The primary run already uploaded this run's artifact name; a second upload would conflict and fail.
+          upload_artifacts: "false"
