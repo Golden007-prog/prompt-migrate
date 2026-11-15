@@ -9,6 +9,7 @@ Familiar to Alembic users, transparent in CI, safe by default. Commands distingu
 | Command | Purpose | Important behavior |
 |---|---|---|
 | `promptmigrate init` | Scaffold project | Creates `.promptmigrate/`, starter `assistant.json`, and declared `dev`/`staging` environments |
+| `promptmigrate --version` | Print package version | Prints `promptmigrate <version>` and exits 0 |
 | `promptmigrate revision -m "message"` | Generate revision from draft delta | Rejects no-op; parent = source head; refuses drafts that break validation or limits, and secret-like values in new content, before writing; writes a protocol v1 file (`format_version: 1`, LF line endings on every OS; see `MIGRATION_PROTOCOL.md`) atomically under the project lock: a hidden temp file published with a no-clobber hard link, so it never overwrites a file and leaves nothing partial on failure (except after a crash on filesystems without hard links, e.g. FAT/exFAT; see `MIGRATION_PROTOCOL.md`); an id already in history is regenerated (5 attempts). A file already at the target path → `StorageError` "Revision file already exists: <name>" (exit 5) |
 | `promptmigrate diff` | Compare drafts with source migration head | JSON diff to stdout; not env diff; secret-like values shown as <redacted:RULE> |
 | `promptmigrate history` | Print ordered source revisions | Shows ID, parent, message; secret-like messages shown as <redacted:RULE> |
@@ -32,7 +33,7 @@ Existing projects without a manifest are read in memory as `dev`, `staging` and 
 
 `check`, `current`, `get`, and `env list` are read-only. They do not create missing state databases. An absent database represents the empty base state; an existing database missing either required table or using WAL journal mode is a storage error and is never repaired by a read. CLI status labels use canonical manifest spelling. `upgrade` and `downgrade` use local SQLite transactions. Production-like names (`prod`, `production`, `live`) emit a warning: these names still refer only to local SQLite files.
 
-**Global flags:** `promptmigrate --project /path/to/project --output {text,json} <command>`. `--output` defaults to `text`.
+**Global flags:** `promptmigrate [--version] [--project /path/to/project] [--output {text,json}] <command>`. `--version` prints `promptmigrate <version>` and exits 0. `--output` defaults to `text`.
 
 ## Developer example
 
