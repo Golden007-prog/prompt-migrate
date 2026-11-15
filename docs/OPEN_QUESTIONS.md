@@ -6,11 +6,11 @@ These are **questions for review**, not permission to disregard agreed CLI-first
 
 1. **Revision schema stability:** freeze existing starter JSON fields as `format_version = 0`, or explicitly introduce a v1 with a tested reader/migration path? **Answered:** v0 frozen as the format without `format_version` (ADR-025); v1 introduced with a tested reader and mixed-history support (ADR-026).
 2. **Strong schema vs extensibility:** which config fields must be standardized and which should be provider-specific extension namespaces?
-3. **Safe deletion policy:** require explicit `--allow-delete` or human confirmation for migration that removes named configurations?
+3. **Safe deletion policy:** require explicit `--allow-delete` or human confirmation for migration that removes named configurations? (#22)
 4. **Source hashing:** continue raw-byte hash for all existing revisions; what precise new canonical-signature format should apply only to later revisions? **Answered:** v0 keeps the raw-byte hash; v1 files use `"v1:" + SHA-256(canonical JSON)` (ADR-026). Signatures remain open.
 5. **Concurrency:** how to atomically generate revision files when two developers/pipelines are on same source head; what happens after Git merges? **Partly answered:** local generation is atomic and serialized by the project lock, and a colliding id is regenerated (PR 10); branches created by Git merges are left to `rebase` (cycle 3).
-6. **Strict transaction semantics:** should `upgrade head` be one transaction for entire path, or one per revision; how to surface results after failure?
-7. **Local `--env prod`:** warn, rename environment model, or disallow misleading production names until real deployment exists?
+6. **Strict transaction semantics:** should `upgrade head` be one transaction for entire path, or one per revision; how to surface results after failure? (#24)
+7. **Local `--env prod`:** warn, rename environment model, or disallow misleading production names until real deployment exists? (#23)
 8. **Runtime integration MVP bridge:** should the immediate next step after hardening be a simple `export` command and local Python resolver?
 9. **Security guardrails:** what secrets/personal data checks and file size limits are safe without unreasonable false positives?
 10. **Compatibility testing:** how to compare application code and output/tool schemas to a revision before allowing deployment?
