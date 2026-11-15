@@ -28,9 +28,15 @@ import promptmigrate.cli
 root = pathlib.Path(sys.prefix).resolve()
 for name, module in list(sys.modules.items()):
     if name == 'promptmigrate' or name.startswith('promptmigrate.'):
-        path = pathlib.Path(module.__file__).resolve()
-        if not path.is_relative_to(root):
-            raise RuntimeError(f'{name} imported from outside the venv: {path}')
+        # Namespace packages have no __file__; check every portion instead of skipping them.
+        file = getattr(module, '__file__', None)
+        locations = [file] if file is not None else list(getattr(module, '__path__', []))
+        if not locations:
+            raise RuntimeError(f'{name} has no file or path to verify')
+        for location in locations:
+            path = pathlib.Path(location).resolve()
+            if not path.is_relative_to(root):
+                raise RuntimeError(f'{name} imported from outside the venv: {path}')
 print('Verified installed imports:', promptmigrate.cli.__file__)
 """
     subprocess.run([str(python), "-I", "-c", probe], cwd=cwd, env=clean_env(), check=True)

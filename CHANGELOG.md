@@ -4,6 +4,7 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 
 ## Unreleased
 
+- Package smoke import guard now verifies namespace package portions through `__path__` instead of crashing on their missing `__file__`. CI cancels superseded runs on non-`main` refs through a workflow-level concurrency group, so matrix legs never cancel each other.
 - Synced package smoke checks with the latest README, CLI version flag and advisory review updates, preserving the host-side smoke job.
 - Package smoke checks build into a fresh temporary directory, excluding stale local artifacts; roadmap completion remains pending CI for the synchronized revision.
 - Added CI smoke tests that install wheel and sdist artifacts into separate virtual environments outside the checkout, verify import origins, and run the migration CLI through a complete draft round trip.

@@ -48,3 +48,22 @@ def test_smoke_rejects_source_import_via_pth(tmp_path, isolated_python, capfd):
     with pytest.raises(subprocess.CalledProcessError):
         load_smoke().verify_install(python, tmp_path)
     assert "imported from outside the venv" in capfd.readouterr().err
+
+
+def test_smoke_accepts_namespace_package_inside_venv(tmp_path, isolated_python):
+    python, site = isolated_python
+    make_package(site)
+    (site / "promptmigrate" / "plugins").mkdir()
+    (site / "promptmigrate" / "cli.py").write_text("import promptmigrate.plugins\n", encoding="utf-8")
+    load_smoke().verify_install(python, tmp_path)
+
+
+def test_smoke_rejects_namespace_package_outside_venv(tmp_path, isolated_python, capfd):
+    python, site = isolated_python
+    source = tmp_path / "source" / "promptmigrate"
+    source.mkdir(parents=True)
+    (source / "cli.py").write_text("", encoding="utf-8")
+    (site / "source.pth").write_text(str(source.parent) + "\n", encoding="utf-8")
+    with pytest.raises(subprocess.CalledProcessError):
+        load_smoke().verify_install(python, tmp_path)
+    assert "imported from outside the venv" in capfd.readouterr().err
