@@ -146,13 +146,19 @@ Record test counts/coverage and measured performance in CI when available; do no
 
 ## Installed distribution smoke checks
 
-The `package-smoke` CI job builds both artifacts with `python -m build` for Python 3.10, 3.12 and 3.13.
-Run it locally with:
+The `docker-test` CI job builds and checks both artifacts inside its Python 3.10, 3.12 and 3.13 CI images.
+The Windows and macOS source suites remain native. Each smoke run builds into a fresh temporary directory,
+so old artifacts in `dist/` cannot enter the check. Run locally in a POSIX shell with:
 
 ```bash
 python -m pip install build
-python -m build
-python scripts/package_smoke.py dist/*.whl dist/*.tar.gz
+(
+  set -e
+  artifact_dir="$(mktemp -d)"
+  trap 'rm -rf "$artifact_dir"' EXIT
+  python -m build --outdir "$artifact_dir"
+  python scripts/package_smoke.py "$artifact_dir"/*.whl "$artifact_dir"/*.tar.gz
+)
 ```
 
 Each artifact is installed with `--no-deps` in its own temporary virtual environment outside the checkout.
@@ -163,4 +169,4 @@ No runtime dependency is added. The build frontend is CI/development tooling onl
 
 `tests/integration/test_package_install_isolation.py` checks the import guard in real temporary interpreters,
 including a `.pth` file that redirects imports to a source directory.
-These checks complement the source suite and do not replace the Windows merge gate.
+These checks complement the source suite. The merge gate still requires every Linux, Windows and macOS CI job to pass.
