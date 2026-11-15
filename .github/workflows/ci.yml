@@ -4,9 +4,10 @@ on:
   pull_request:
 permissions:
   contents: read
-# Workflow-level so matrix legs never share a group and cancel each other; runs on main always finish.
+# Workflow-level so matrix legs never share a group and cancel each other. Each main run gets its own group,
+# because a group holds one pending run and a newer one would replace it even without cancel-in-progress.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   docker-test:
