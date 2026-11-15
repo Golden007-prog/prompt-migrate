@@ -75,6 +75,10 @@ Tests are grouped by suite: `tests/unit/`, `tests/integration/`, `tests/contract
 Fill in the pull request template. Paste the real output of `python -m pytest -q` from your machine, and say which OS
 and Python version you ran it on. Linux and macOS behaviour is only claimed once CI has run.
 
+An automated Open CodeReview bot may comment on your pull request. Its comments are advisory: it is not part of the
+merge gate, and a maintainer decides which findings need a change. Maintainers can re-run it by commenting
+`/open-code-review`.
+
 ## Reporting problems
 
 Use the issue templates for bugs and feature requests. Report security problems privately, as described in

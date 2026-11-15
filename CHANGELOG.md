@@ -4,8 +4,11 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 
 ## Unreleased
 
+- Synced the package-smoke branch with the advisory review workflow, preserving both changelog entries and the host-side smoke checks.
+
 - Package smoke checks now build into a fresh temporary directory, excluding stale local artifacts; roadmap completion remains pending CI for the current revision.
 - Added CI smoke tests that install wheel and sdist artifacts into separate virtual environments outside the checkout, verify import origins, and run the migration CLI through a complete draft round trip.
+- Added an advisory AI review of pull requests (`.github/workflows/ocr-review.yml`) using Open CodeReview v1.13.10, pinned by commit, with DeepSeek V4.1 Flash (`deepseek-ai/deepseek-v4.1-flash`) on NVIDIA's free NIM endpoint by default; the `OCR_LLM_MODEL` repository variable overrides it. If that review fails, it retries once with MiniMax M3.1 Flash (`minimaxai/minimax-m3.1-flash`, overridable with `OCR_LLM_FALLBACK_MODEL`). It only posts comments and is not part of the merge gate.
 - Updated the CodeRabbit workflow rule in `.coderabbit.yaml`: it no longer forbids host-side CI jobs, matching the native Windows/macOS test jobs and host-side package-install smoke tests (fixes #73).
 - Added Commands, Code style, and Issues and pull requests sections to `AGENTS.md`. `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, `HERMES.md` and `.github/copilot-instructions.md` now only point to `AGENTS.md`; `CLAUDE.md` and `GEMINI.md` import it with `@AGENTS.md`.
 - Replaced the local-Windows merge gate in `AGENTS.md` with a CI-based one: every CI job green on all OS/Python combinations, branch up to date with `main`, resolved review threads, and real test output in the PR. Changes reach `main` only through a reviewed pull request. The PR template now asks for `Closes #N` and green CI.
