@@ -4,7 +4,8 @@
 # Settings -> Secrets and variables -> Actions:
 #   secret    OCR_LLM_URL         https://integrate.api.nvidia.com/v1/chat/completions
 #   secret    OCR_LLM_AUTH_TOKEN  nvapi-... key from build.nvidia.com
-#   variable  OCR_LLM_MODEL       optional; defaults to deepseek-ai/deepseek-v4.1-flash (alternative: moonshotai/kimi-k2.6)
+#   variable  OCR_LLM_MODEL           optional; defaults to deepseek-ai/deepseek-v4.1-flash
+#   variable  OCR_LLM_FALLBACK_MODEL  optional; defaults to minimaxai/minimax-m3.1-flash, used when the primary run fails
 #
 # Re-run on demand by commenting "/open-code-review" on a PR (members, owners and collaborators only).
 name: OpenCodeReview
@@ -70,7 +71,10 @@ jobs:
             core.setOutput('head_sha', pr.head.sha);
             core.setOutput('title', pr.title);
 
-      - name: Run OpenCodeReview
+      - name: Run OpenCodeReview (primary model)
+        id: primary
+        # A failed review stops the action before it posts anything, so the fallback below can safely run in full.
+        continue-on-error: true
         uses: alibaba/open-code-review@7e5ce06c88de5ce81df5dc4f24e2e485b517fae8 # v1.13.10
         with:
           ocr_version: 1.13.10
@@ -93,3 +97,27 @@ jobs:
           route_categories: style,documentation
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
+
+      - name: Run OpenCodeReview (fallback model)
+        if: steps.primary.outcome == 'failure'
+        uses: alibaba/open-code-review@7e5ce06c88de5ce81df5dc4f24e2e485b517fae8 # v1.13.10
+        with:
+          ocr_version: 1.13.10
+          llm_url: ${{ secrets.OCR_LLM_URL }}
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: ${{ vars.OCR_LLM_FALLBACK_MODEL || 'minimaxai/minimax-m3.1-flash' }}
+          llm_use_anthropic: "false"
+          llm_protocol: openai
+          llm_extra_body: "{}"
+          llm_timeout: "300"
+          review_concurrency: "3"
+          effort: medium
+          max_tokens_budget: "2000000"
+          background: ${{ github.event.pull_request.title || steps.pr-context.outputs.title }}
+          sticky_summary: "true"
+          incremental: "true"
+          route_categories: style,documentation
+          base_ref: ${{ steps.pr-context.outputs.base_ref }}
+          head_sha: ${{ steps.pr-context.outputs.head_sha }}
+          # The primary run already uploaded this run's artifact name; a second upload would conflict and fail.
+          upload_artifacts: "false"
