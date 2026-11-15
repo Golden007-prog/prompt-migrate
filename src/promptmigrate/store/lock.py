@@ -1,4 +1,4 @@
-"""Project-wide lock serializing manifest changes and initial environment database setup."""
+"""Project-wide lock serializing manifest changes, revision writes, and initial environment database setup."""
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -12,7 +12,7 @@ from .. import project
 
 @contextmanager
 def _project_lock(project_dir: Path) -> Iterator[None]:
-    """Serialize project metadata changes and initial environment database setup."""
+    """Serialize project metadata changes, revision writes, and initial environment database setup."""
     root = project.require_init(project_dir)
     if os.name == "nt":
         import ctypes

@@ -150,6 +150,13 @@ def test_windows_winerror_not_supported_falls_back_to_exclusive_create(tmp_path,
     assert leftovers(tmp_path) == ["r.json"]
 
 
+def test_missing_target_directory_is_a_storage_error(tmp_path):
+    target = tmp_path / "missing" / "r.json"
+    with pytest.raises(StorageError, match=r"^Cannot write r\.json: "):
+        project.write_new_file(target, TEXT)
+    assert not target.parent.exists()
+
+
 def test_fsync_dir_failure_after_publish_is_ignored(tmp_path, monkeypatch):
     monkeypatch.setattr(project, "_fsync_dir", _fail)
     target = tmp_path / "r.json"

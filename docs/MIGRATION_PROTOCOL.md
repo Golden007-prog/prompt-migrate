@@ -193,7 +193,8 @@ A revision file whose top-level `format_version` is the JSON integer `1` is v1 (
   bytes. It holds the project lock while it reads history and writes, writes to a hidden `.tmp` file in `versions/`,
   fsyncs it and publishes it with a hard link that fails if the target exists, so a revision file is never
   overwritten or left partial. Where hard links are unsupported (e.g. FAT/exFAT) it falls back to an exclusive
-  create: still no-clobber, but a crash mid-write can leave a partial file
+  create: still no-clobber, but a crash mid-write can leave a partial file. Recovery is manual: every later command
+  fails loading the broken file with `SchemaError` (exit 3) naming it, until the partial file is deleted by hand
 - a string containing an unpaired UTF-16 surrogate escape (for example `"\udc80"`) cannot be canonicalised and is a
   tier-A error: `Invalid string in <file>: unpaired surrogate`
 
