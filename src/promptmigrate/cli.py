@@ -1,10 +1,11 @@
 """Command line entry point."""
 
 import argparse
+import importlib.metadata
 import sqlite3
 import sys
 import warnings
-from . import output
+from . import __version__, output
 from .commands import check, current, diff, downgrade, env, get, history, init, plan, restamp, revision, upgrade
 from .errors import PromptMigrateWarning
 
@@ -15,9 +16,18 @@ COMMANDS = {
 }
 
 
+def _get_version() -> str:
+    """Read package version via importlib.metadata with fallback to static __version__."""
+    try:
+        return importlib.metadata.version("promptmigrate")
+    except importlib.metadata.PackageNotFoundError:
+        return __version__
+
+
 def build_parser() -> argparse.ArgumentParser:
     """The argument parser: global flags, then one subparser per command."""
     p = argparse.ArgumentParser(prog="promptmigrate", description="Alembic-style prompt configuration migrations")
+    p.add_argument("--version", action="version", version=f"%(prog)s {_get_version()}")
     p.add_argument("--project", default=".", help="Project directory, default: current directory")
     p.add_argument("--output", choices=output.FORMATS, default="text", help="Output format, default: text")
     sub = p.add_subparsers(dest="command", required=True)
