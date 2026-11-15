@@ -18,4 +18,71 @@
 
 ## Phase 1 — Harden migration core (first implementation priority)
 
-**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026; `restamp`, ADR-027; no-clobber revis
+**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026; `restamp`, ADR-027; no-clobber revision writes, PR 10). The integrity guidance now distinguishes v0 raw-byte checks from v1 canonical-content checks. Finishing cycle 2 does **not** finish Phase 1.
+
+### Cycle 1 (PRs 1–6 + 3b)
+
+- [x] Connection lifecycle fix; Linux Docker CI matrix across Python 3.10, 3.12 and 3.13, plus native Windows and macOS jobs (`.github/workflows/ci.yml`). Linux/macOS support is claimed only after a remote CI run passes.
+- [x] Characterization tests and legacy compatibility fixtures (`tests/fixtures/legacy`, `tests/fixtures/legacy_breaking`).
+- [x] Strict parsing (duplicate keys, NaN, size/depth, symlinks), compatibility tiers, canonical equality (`protocol/`).
+- [x] Heuristic secret safeguard: `revision` blocks, `diff`/`get` redact, reviewed allowlist (`secretscan.py`).
+- [x] Declared environments; read commands never write (`store/`, `env add`, `env list`).
+- [x] Refactor core into testable modules incrementally, without breaking the CLI (ADR-022; `core.py` is a re-export facade).
+- [x] Read-only `plan` with a property-based plan==apply test (`plan.py`, `commands/plan.py`).
+- [x] Typed errors, exit codes 0–5, `--output json` (`output.py`; schema `promptmigrate.output/1`; ADR-024).
+
+### Remaining after cycle 1 (cycle 2+)
+
+- [x] Freeze v0.x artifact semantics formally; protocol v1 with canonical revision hashes (fixes the CRLF false-tamper risk for new revisions).
+  - 2026-11-13: v0 frozen (ADR-025); protocol v1 with canonical checksums shipped, and new revisions are v1 with LF line endings (ADR-026). Baseline after PR 8: 802 passed, 18 skipped.
+  - 2026-11-13: explicit `restamp` for v0 ledger rows whose mismatch is line endings only (ADR-027). Baseline after PR 9: 854 passed, 18 skipped.
+  - 2026-11-14: review fix: `restamp` removed from the docs' list of commands that reject an eligible line-ending-only row with exit 4 (it re-stamps and succeeds). Baseline unchanged: 854 passed, 18 skipped.
+- [x] Atomic revision file generation and collision handling.
+  - 2026-11-14: `revision` writes through `project.write_new_file` under the project lock: no overwrite, no partial file where hard links are supported, colliding ids regenerated (I17). CLI_SPEC notes the no-hard-link fallback is not crash-atomic. New files get the umask mode from the OS at creation; the process umask is never read or changed. Baseline after PR 10: 883 passed, 19 skipped.
+- [ ] `validate` command.
+- [ ] Concurrency tests and the fault-injection suite.
+- [ ] Package-install smoke tests.
+- [ ] Append-only events table; `rebase` for unapplied revisions.
+
+**Exit:** correct, stable local CLI with comprehensive automated evidence and honest documentation.
+
+## Phase 2 — Evaluation and policy gates
+
+- [ ] Evaluation suite interface and policy config format.
+- [ ] Golden datasets and rule-based checks.
+- [ ] Pluggable LLM-judge evaluators as optional plugins, with uncertainty handling.
+- [ ] Evaluation report bound to candidate content hash.
+- [ ] CI required-pass gate / explicit failure reason.
+- [ ] Critical checks for tool permission and output schema compatibility.
+
+**Exit:** candidate revision requires verifiable quality evidence for opted-in workflows.
+
+## Phase 3 — Real production release protocol
+
+- [ ] Immutable configuration bundle / release manifest.
+- [ ] Central PostgreSQL environment state and audit trail.
+- [ ] Release prepare/verify/activate lifecycle and CAS pointer.
+- [ ] Python runtime SDK with pinning/caching/compatibility controls.
+- [ ] Idempotent adapter interface + at least one supported provider integration.
+- [ ] Reconciliation for external partial failures and drift.
+- [ ] Real promotion and rollback controls with approvals.
+
+**Exit:** can safely demonstrate end-to-end staging→production deployment under injected failures, without partial activation.
+
+## Phase 4 — Stable community release
+
+- [x] Python version classifiers in pyproject.toml match the CI matrix (3.10, 3.12, 3.13).
+- [ ] Stable protocol compatibility/versioning policy.
+- [ ] Maintainer security disclosure process and supply-chain checks.
+- [ ] Contributor guide, examples for several frameworks. (Started early, 2026-11-03: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates, and a root `SECURITY.md` pointing to GitHub private vulnerability reporting. 2026-11-05: `AGENTS.md` holds every rule for AI coding agents, including updating this file and `CHANGELOG.md` on each commit.)
+- [ ] Published PyPI package and documented upgrade migration policy.
+- [ ] Cross-platform docs and support matrix.
+- [ ] Public comparison and case studies grounded in measured behavior.
+
+## Deliberate non-goals early
+
+No SaaS dashboard, no visual prompt editor, no paid cloud control plane, no direct model-weight handling, no proprietary protocol, and no blanket promises that prompt versions imply reproducible LLM outputs.
+
+## First next step
+
+Phase 1 cycle 2 is under way. Protocol v1 is shipped (ADR-026), so new revisions are immune to formatting-only changes; integrity guidance now reflects the separate v0 and v1 rules. `restamp`, an explicit, opt-in re-stamp of v0 ledger rows whose mismatch is line endings only, is shipped (ADR-027); v0 hash semantics are unchanged. Verifying commands name `restamp` when a mismatch is line endings only. Revision files are never overwritten, and are written atomically where hard links are supported (PR 10); the no-hard-link fallback is not crash-atomic. Next: the source-only `validate` command. Use [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), and keep to small tested PRs.
