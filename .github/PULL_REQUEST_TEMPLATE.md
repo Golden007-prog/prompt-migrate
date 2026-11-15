@@ -1,6 +1,8 @@
 ## What and why
 
-<!-- One or two sentences. Link the issue or roadmap item. -->
+<!-- One or two sentences. One issue per PR. -->
+
+Closes #
 
 ## Checklist (see AGENTS.md)
 
@@ -10,6 +12,7 @@
 - [ ] No change to the revision file format or checksum semantics (or an explicit format version is added).
 - [ ] No token-shaped literal in code, tests or fixtures; fake secrets are built at runtime from fragments.
 - [ ] No new runtime dependency.
+- [ ] Every CI job is green and the branch is up to date with `main`.
 
 ## Test output
 

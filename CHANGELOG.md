@@ -5,6 +5,7 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 ## Unreleased
 
 - Added Commands, Code style, and Issues and pull requests sections to `AGENTS.md`. `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, `HERMES.md` and `.github/copilot-instructions.md` now only point to `AGENTS.md`; `CLAUDE.md` and `GEMINI.md` import it with `@AGENTS.md`.
+- Replaced the local-Windows merge gate in `AGENTS.md` with a CI-based one: every CI job green on all OS/Python combinations, branch up to date with `main`, one maintainer approval, and real test output in the PR. Changes reach `main` only through a reviewed pull request. The PR template now asks for `Closes #N` and green CI.
 - Clarified that applied v0 revisions are checked by raw bytes, while v1 revisions allow formatting-only changes and are checked by canonical parsed content; aligned the integrity test guidance.
 - Added an SVG banner to the README showing PromptMigrate's ordered revision flow and verified local environment state.
 - Corrected README and handoff documentation to include the shipped `plan` command and native Windows/macOS CI coverage; refreshed the documented test baseline and suite location. Brought `PRD.md`, `ROADMAP.md` and `LOW_LEVEL_DESIGN.md` up to date with the shipped `plan`, exit codes, JSON output, typed errors and strict loader. Moved all agent rules and the architecture overview from `CLAUDE.md` into `AGENTS.md`.
