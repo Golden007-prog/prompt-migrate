@@ -5,7 +5,7 @@ from __future__ import annotations
 import errno
 import json
 import os
-import tempfile
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +18,11 @@ _NO_LINKS = {errno.EPERM, errno.ENOTSUP, errno.EOPNOTSUPP}
 # CreateHardLink's own "not supported" codes (FAT/exFAT, many SMB shares); CPython maps these failures to errno
 # EINVAL, which isn't in _NO_LINKS above, so the winerror has to be checked too on Windows.
 _NO_LINKS_WINERROR = {1, 50}  # ERROR_INVALID_FUNCTION, ERROR_NOT_SUPPORTED
+# Exclusive create in binary mode. Mode 0o666 lets the OS apply the umask (and any default ACL) at creation, so the
+# process never has to read the umask: os.umask is process-wide and reading it means setting it.
+_NEW_FILE_FLAGS = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0)
+_NEW_FILE_MODE = 0o666
+_TEMP_ATTEMPTS = 100
 
 
 def pretty(obj: Any) -> str:
@@ -30,11 +35,19 @@ def _write_all(fd: int, data: bytes) -> None:
         view = view[os.write(fd, view):]
 
 
-def _umask_mode() -> int:
-    """The mode a plain new file gets: mkstemp's 0600 would make a tracked source file unreadable to others."""
-    umask = os.umask(0)
-    os.umask(umask)
-    return 0o666 & ~umask
+def _create_temp(directory: Path) -> tuple[int, Path]:
+    """Create a new hidden `.<hex>.tmp` file in `directory`; the `*.json` glob in load_revisions never sees it.
+
+    Not tempfile.mkstemp: it always creates mode 0600, and a hard link shares that mode, so the published file would
+    be unreadable to others; fixing it afterwards needs the umask.
+    """
+    for _ in range(_TEMP_ATTEMPTS):
+        temp = directory / f".{secrets.token_hex(8)}.tmp"
+        try:
+            return os.open(temp, _NEW_FILE_FLAGS, _NEW_FILE_MODE), temp
+        except FileExistsError:
+            continue  # someone else's temp file: never touch it, try another name
+    raise StorageError(f"Cannot create a temporary file in {directory.name}: every name tried exists")
 
 
 def _fsync_dir(directory: Path) -> None:
@@ -55,7 +68,7 @@ def _link_unsupported(exc: OSError) -> bool:
 
 def _write_exclusive(path: Path, data: bytes) -> None:
     """No-clobber fallback without hard links: still never overwrites, but a crash can leave a partial file."""
-    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_BINARY", 0), _umask_mode())
+    fd = os.open(path, _NEW_FILE_FLAGS, _NEW_FILE_MODE)
     try:
         try:
             _write_all(fd, data)
@@ -74,15 +87,13 @@ def write_new_file(path: Path, text: str) -> None:
     """
     data = text.encode("utf-8")
     try:
-        fd, name = tempfile.mkstemp(prefix=".", suffix=".tmp", dir=path.parent)
-        temp = Path(name)
+        fd, temp = _create_temp(path.parent)
         try:
             try:
                 _write_all(fd, data)
                 os.fsync(fd)
             finally:
                 os.close(fd)
-            os.chmod(temp, _umask_mode())
             try:
                 os.link(temp, path)
             except FileExistsError:

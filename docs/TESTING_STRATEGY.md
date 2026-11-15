@@ -27,7 +27,7 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 | 2026-11-13 (after PR 7) | Windows 11, Python 3.11.9 | `python -m pytest -q` → `741 passed, 18 skipped, 1 xfailed, 33 warnings`; original unittest suite → `Ran 7 tests ... OK` |
 | 2026-11-13 (after PR 8) | Windows 11, Python 3.11.9 | `python -m pytest -q` → `802 passed, 18 skipped, 33 warnings`; original unittest suite → `Ran 7 tests ... OK` |
 | 2026-11-13 (after PR 9) | Windows 11, Python 3.11.9 | `python -m pytest -q` → `854 passed, 18 skipped, 33 warnings`; original unittest suite → `Ran 7 tests ... OK` |
-| 2026-11-14 (after PR 10) | Windows 11, Python 3.11.9 | `python -m pytest -q` → `880 passed, 19 skipped, 33 warnings`; original unittest suite → `Ran 7 tests ... OK` |
+| 2026-11-15 (after PR 10) | Windows 11, Python 3.11.9 | `python -m pytest -q` → `883 passed, 19 skipped, 33 warnings`; original unittest suite → `Ran 7 tests ... OK` |
 
 GitHub Actions runs the complete suite inside Linux Docker containers, and natively on `windows-latest` and
 `macos-latest`, for Python 3.10, 3.12 and 3.13. The native jobs cover the store's Windows-only paths and macOS's

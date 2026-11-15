@@ -45,14 +45,35 @@ def test_temp_file_is_hidden_from_the_json_glob(tmp_path, monkeypatch):
     real = project._write_all
 
     def spy(fd, data):
-        seen.extend(leftovers(tmp_path))
+        if not seen:  # the first write is the temp file; a no-hard-link fallback writes a second time
+            seen.append(leftovers(tmp_path))
         real(fd, data)
 
     monkeypatch.setattr(project, "_write_all", spy)
     project.write_new_file(tmp_path / "r.json", TEXT)
-    [temp] = seen
+    [[temp]] = seen
     assert temp.startswith(".") and temp.endswith(".tmp")
     assert list(tmp_path.glob("*.json")) == [tmp_path / "r.json"]
+
+
+def test_never_reads_or_changes_the_process_umask(tmp_path, monkeypatch):
+    """os.umask is process-wide: reading it means setting it, which races with other threads in an embedding app."""
+    def forbidden(*_args):
+        raise AssertionError("write_new_file must not call os.umask")
+
+    monkeypatch.setattr(os, "umask", forbidden)
+    project.write_new_file(tmp_path / "r.json", TEXT)
+    assert (tmp_path / "r.json").read_bytes() == DATA
+
+
+def test_a_taken_temp_name_is_skipped_and_left_alone(tmp_path, monkeypatch):
+    (tmp_path / ".taken.tmp").write_bytes(b"someone else's temp")
+    tokens = iter(["taken", "fresh"])
+    monkeypatch.setattr(project.secrets, "token_hex", lambda _n: next(tokens))
+    project.write_new_file(tmp_path / "r.json", TEXT)
+    assert (tmp_path / "r.json").read_bytes() == DATA
+    assert (tmp_path / ".taken.tmp").read_bytes() == b"someone else's temp"
+    assert leftovers(tmp_path) == [".taken.tmp", "r.json"]
 
 
 def _fail_write(fd, data):
