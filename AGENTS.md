@@ -90,7 +90,7 @@ Match the surrounding code. These conventions are followed across `src/`:
 - **Merge gate:** a PR merges only when all of these hold:
   1. Every CI job in `.github/workflows/ci.yml` is green: Linux (Docker), Windows and macOS on Python 3.10, 3.12 and 3.13. A red or skipped job blocks the merge, and flaky tests are fixed, not re-run until they pass.
   2. The branch is up to date with `main`, so CI ran against the code that will land.
-  3. At least one maintainer has approved the PR, and every review thread is resolved.
+  3. Every review thread is resolved. A maintainer reviews each outside contribution before merging it. GitHub requires no approval while there is a single maintainer, because GitHub does not let an author approve their own PR; raise the required approvals to 1 when a second maintainer joins.
   4. The PR description includes the test command, its real output and the OS/Python version it was run on. Claims about a platform are backed by that platform's CI job, never by a local run on another OS.
 
 ## Before every commit
