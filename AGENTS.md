@@ -2,6 +2,8 @@
 
 These rules are mandatory for every AI coding agent (Claude Code, Codex, Cursor, Copilot, Gemini, Hermes or any other) and every change. All rules live here. The tool-specific files `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, `HERMES.md` and `.github/copilot-instructions.md` only point to this file (plus tool-specific orientation such as where plans are saved) and never add to or override a rule; to change a rule, edit this file.
 
+**The rules that do the most damage when broken** (details under Hard rules): fail closed on drift or corrupt history, never silently accept them; never change the revision format or checksum semantics without a new format version; never commit a secret or token-shaped literal; the runtime stays stdlib-only.
+
 ## Mission
 
 **PromptMigrate** is an open-source, Alembic-inspired CLI for **AI prompt and agent configuration migrations**: safe ordered revisions, environment state tracking, reversible changes, integrity/drift checks, and eventually policy-gated immutable release activation. **Do not redefine it as** a prompt editor, LLM workflow orchestrator, SaaS dashboard, observability tool or generic AI agent system.
@@ -51,6 +53,15 @@ Flow: `load_revisions()` enforces one linear chain and replays it from `{}`. `re
 - **Implementing:** inspect the repo and state the test baseline; pick a small scope from `docs/IMPLEMENTATION_PLAN.md` or the active spec; follow TDD below; report **actual** test results only; keep shipped and planned behavior clearly separate.
 - **Reviews** use: **Verified / Planned / Risks–contradictions (severity) / Proposed ADR updates / Next 3 steps with test acceptance criteria.**
 
+## Working style
+
+Adapted from the Karpathy guidelines (`andrej-karpathy-skills`, MIT). For trivial tasks, use judgment.
+
+- **Think before coding.** State your assumptions. If a request has several readings, list them instead of picking one silently. If something is unclear, stop and ask; if a simpler approach exists, say so.
+- **Simplicity first.** Write the least code that solves the task: no unrequested features, configurability, single-use abstractions, or error handling for impossible cases.
+- **Surgical changes.** Every changed line traces to the task. Don't reformat, refactor or "improve" adjacent code; mention unrelated dead code instead of deleting it. Remove only the imports, variables and functions your own change made unused.
+- **Goal-driven execution.** Turn the task into a check you can verify (usually a failing test, per Testing below). For multi-step work, state a short plan with a check for each step, and loop until every check passes.
+
 ## Hard rules
 
 - Keep source history and applied env state distinct; fail closed on drift, corrupt history, unexpected state or partial writes.
@@ -62,6 +73,11 @@ Flow: `load_revisions()` enforces one linear chain and replays it from `{}`. `re
 - Runtime stays stdlib-only; dev deps go in `[project.optional-dependencies] dev`. No AI-orchestration frameworks in core.
 - `check` is an integrity check, not a prompt-behavior evaluation. Downgrade reverts configuration only, not external agent actions. Future activation = immutable release manifest + atomic pointer switch; never claim distributed ACID across remote APIs.
 - No wholesale rewrites without regression coverage.
+
+## Boundaries
+
+- **Ask first:** changing the revision format, checksum semantics or state layout; adding a dev dependency (runtime dependencies are never allowed); cross-module refactors or rewrites; deleting or rewriting env state, revisions or ledger rows; anything that touches a remote (push, PR, issue, release).
+- **Never:** commit secrets or token-shaped literals; hand-edit an applied revision to make a check pass; weaken a drift or integrity check to get a test green; skip hooks or force-push `main`; add AI attribution to commits or PRs.
 
 ## Code structure
 
