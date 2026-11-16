@@ -143,3 +143,31 @@ Basenames stay unique across directories, because pytest's default `prepend` imp
 ## Metrics
 
 Record test counts/coverage and measured performance in CI when available; do not invent performance, scale limits, or coverage percentages in public docs.
+
+## Installed distribution smoke checks
+
+The `package-smoke` CI job builds and checks both artifacts on Linux hosts with Python 3.10, 3.12 and 3.13.
+The full source suites still run in Linux containers and natively on Windows and macOS. Each smoke run builds into a fresh temporary directory,
+so old artifacts in `dist/` cannot enter the check. Run locally in a POSIX shell with:
+
+```bash
+python -m pip install build
+(
+  set -e
+  artifact_dir="$(mktemp -d)"
+  trap 'rm -rf "$artifact_dir"' EXIT
+  python -m build --outdir "$artifact_dir"
+  python scripts/package_smoke.py "$artifact_dir"/*.whl "$artifact_dir"/*.tar.gz
+)
+```
+
+Each artifact is installed with `--no-deps` in its own temporary virtual environment outside the checkout.
+The runner clears `PYTHONPATH` and `PYTHONHOME`, disables user site packages, and rejects imported PromptMigrate modules outside that environment.
+It invokes the installed console script for `init`, `revision`, `upgrade`, `check --require-head`, `history`, and `get`.
+Every command must exit successfully and return the JSON success envelope; the final config must match the draft.
+No runtime dependency is added. The build frontend is CI/development tooling only.
+
+`tests/integration/test_package_install_isolation.py` checks the import guard in real temporary interpreters,
+including a `.pth` file that redirects imports to a source directory and namespace packages,
+whose `__path__` portions are checked because they have no `__file__`.
+These checks complement the source suite. The merge gate still requires every Linux, Windows and macOS CI job to pass.

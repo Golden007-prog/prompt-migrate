@@ -1,6 +1,6 @@
 # ROADMAP — From local prototype to reliable open-source project
 
-> Milestones are **plans**, not shipping promises. Status checked against the code on 2026-11-15.
+> Milestones are **plans**, not shipping promises. Status checked against the code on 2026-11-16.
 
 ## Phase 0 — Existing proof of concept
 
@@ -18,7 +18,7 @@
 
 ## Phase 1 — Harden migration core (first implementation priority)
 
-**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026; `restamp`, ADR-027; no-clobber revision writes, PR 10). The integrity guidance now distinguishes v0 raw-byte checks from v1 canonical-content checks. Finishing cycle 2 does **not** finish Phase 1.
+**Status:** in progress. Phase 1 is delivered in cycles. Cycle 1 is complete; cycle 2 is under way (v0 frozen, ADR-025; protocol v1, ADR-026; `restamp`, ADR-027; no-clobber revision writes, PR 10). The integrity guidance now distinguishes v0 raw-byte checks from v1 canonical-content checks. Package-install smoke tests are shipped (PR #67, #13; hardened in PR #78); CI passed on `main` at `059a1b9`. Finishing cycle 2 does **not** finish Phase 1.
 
 ### Cycle 1 (PRs 1–6 + 3b)
 
@@ -39,10 +39,12 @@
   - 2026-11-14: review fix: `restamp` removed from the docs' list of commands that reject an eligible line-ending-only row with exit 4 (it re-stamps and succeeds). Baseline unchanged: 854 passed, 18 skipped.
 - [x] Atomic revision file generation and collision handling.
   - 2026-11-14: `revision` writes through `project.write_new_file` under the project lock: no overwrite, no partial file where hard links are supported, colliding ids regenerated (I17). CLI_SPEC notes the no-hard-link fallback is not crash-atomic. New files get the umask mode from the OS at creation; the process umask is never read or changed. Baseline after PR 10: 883 passed, 19 skipped.
-- [ ] `validate` command.
-- [ ] Concurrency tests and the fault-injection suite.
-- [ ] Package-install smoke tests.
-- [ ] Append-only events table; `rebase` for unapplied revisions.
+- [x] CLI `--version` flag: prints package version via `importlib.metadata` with fallback to `__version__` (PR 70, #16).
+- [x] Package-install smoke tests (#13, PR #67): wheel and sdist install into separate virtual environments outside the checkout, then run a full CLI round trip. The import guard also verifies namespace package portions (PR #78). Baseline on `main` at `059a1b9`: 890 passed, 19 skipped (Windows 11, Python 3.11.9).
+- [ ] `validate` command (#10).
+- [ ] Concurrency tests and the fault-injection suite (#11, #12, #31, #32, #33), plus lock and file-mode follow-ups (#79).
+- [ ] README commands as executable smoke tests (#21).
+- [ ] Append-only events table (#14); `rebase` for unapplied revisions (#15). Both are RFCs and need an accepted ADR first.
 
 **Exit:** correct, stable local CLI with comprehensive automated evidence and honest documentation.
 
@@ -74,7 +76,7 @@
 - [x] Python version classifiers in pyproject.toml match the CI matrix (3.10, 3.12, 3.13).
 - [ ] Stable protocol compatibility/versioning policy.
 - [ ] Maintainer security disclosure process and supply-chain checks.
-- [ ] Contributor guide, examples for several frameworks. (Started early, 2026-11-03: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates, and a root `SECURITY.md` pointing to GitHub private vulnerability reporting. 2026-11-05: `AGENTS.md` holds every rule for AI coding agents, including updating this file and `CHANGELOG.md` on each commit.)
+- [ ] Contributor guide, examples for several frameworks. (Started early, 2026-11-03: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, issue and PR templates, and a root `SECURITY.md` pointing to GitHub private vulnerability reporting. 2026-11-05: `AGENTS.md` holds every rule for AI coding agents, including updating this file and `CHANGELOG.md` on each commit. 2026-11-15: `AGENTS.md` gained commands, code style and issue/PR rules; every tool-specific agent file now points to it. The backlog is filed as single-task GitHub issues, with one milestone per phase. An advisory Open CodeReview bot comments on PRs and is outside the merge gate.)
 - [ ] Published PyPI package and documented upgrade migration policy.
 - [ ] Cross-platform docs and support matrix.
 - [ ] Public comparison and case studies grounded in measured behavior.
@@ -85,4 +87,4 @@ No SaaS dashboard, no visual prompt editor, no paid cloud control plane, no dire
 
 ## First next step
 
-Phase 1 cycle 2 is under way. Protocol v1 is shipped (ADR-026), so new revisions are immune to formatting-only changes; integrity guidance now reflects the separate v0 and v1 rules. `restamp`, an explicit, opt-in re-stamp of v0 ledger rows whose mismatch is line endings only, is shipped (ADR-027); v0 hash semantics are unchanged. Verifying commands name `restamp` when a mismatch is line endings only. Revision files are never overwritten, and are written atomically where hard links are supported (PR 10); the no-hard-link fallback is not crash-atomic. Next: the source-only `validate` command. Use [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), and keep to small tested PRs.
+Phase 1 cycle 2 is under way. Protocol v1 is shipped (ADR-026), so new revisions are immune to formatting-only changes; integrity guidance now reflects the separate v0 and v1 rules. `restamp`, an explicit, opt-in re-stamp of v0 ledger rows whose mismatch is line endings only, is shipped (ADR-027); v0 hash semantics are unchanged. Verifying commands name `restamp` when a mismatch is line endings only. Revision files are never overwritten, and are written atomically where hard links are supported (PR 10); the no-hard-link fallback is not crash-atomic. Package-install smoke tests are shipped (PR #67). Next: the source-only `validate` command (#10). Use [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), and keep to small tested PRs.
