@@ -4,6 +4,7 @@ All notable changes to PromptMigrate. Before 1.0, CLI and file contracts may cha
 
 ## Unreleased
 
+- Synced the roadmap with the Phase 1 issues: package-install smoke tests marked done (#13, PR #67), the `--version` baseline corrected, issue numbers added to open items, #21 and #79 listed, and RFC issue numbers added to OPEN_QUESTIONS. Refreshed the verified test baseline in AGENTS.md.
 - Package smoke import guard now verifies namespace package portions through `__path__` instead of crashing on their missing `__file__`. CI cancels superseded runs on non-`main` refs through a workflow-level concurrency group, so matrix legs never cancel each other; every `main` run gets its own group and always runs.
 - Synced package smoke checks with the latest README, CLI version flag and advisory review updates, preserving the host-side smoke job.
 - Package smoke checks build into a fresh temporary directory, excluding stale local artifacts; roadmap completion remains pending CI for the synchronized revision.
